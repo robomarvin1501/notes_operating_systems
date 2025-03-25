@@ -1,0 +1,236 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{color}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\title{Lecture 1}
+\author{Gidon Rosalki}
+\date{2025-03-23}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\begin{document}
+\maketitle
+\section{What is all this}\label{sec:What is all this} % (fold)
+A computer system includes hardware (mouse, keyboard, screens, disks, etc.),
+applications (software, and programs), users, and data. \\
+An operating system sits between the hardware and the applications. Using
+hardware is enabled by the OS. It is important to remember that an OS is a
+\textbf{program}. It provides an environment in which other programs operate,
+but does not do useful work on its own. Its sole purpose is to aid running other
+programs. The OS is reactive and resident. \begin{itemize}
+    \item Reactive: It does not do anything if you do not request it to do
+        anything.
+    \item Resident: It is always there. Other programs might shut down, or only
+        be active when being actively used, the OS is always there, and always
+        waiting.
+\end{itemize}
+The OS additionally makes the computer convenient and safe. It achieves this by
+providing abstractions and virtualisations to the hardware (an easy example from
+C is memory allocation, and program virtual memory). It also enables efficient
+hardware use through resource management (for example, memory defragmentation).
+In reality programs can directly access the CPU and memory (as discussed in
+NAND), but things like the keyboard, mouse, and so on are accessed through the
+OS, such as through device drivers and the like. We might want access to
+multiple operating systems, which may be achieved though virtualisation.
+Additionally, we might want to run our OS on multiple CPUs, or multiple cores on
+one CPU. \\
+In order to run a program we need to put our program into the first disk block.
+We also need hardware control, such as the mouse, the monitor, the file systems,
+and so on. However, doing all this manually would not create portable programs.
+Thus the OS provides abstractions to these concepts, and enables us to pass
+programs between computers. It also allows us to easily run more than one
+program at once on a single computer, since it handles hardware sharing for us,
+and we do not need to write our own scheduler and the like on our own (unless
+we're studying how to write the OS, in which case, go wild). \\
+Let us consider how to read from the disk. With an OS we simply call to
+\begin{lstlisting}
+    read(fd, buf, nbytes)
+\end{lstlisting}
+which returns a success code. Without an OS we need to:
+\begin{enumerate}
+    \item Read a linear sector from the disk
+    \item Convert the linear sector number to a cylinder, plate, track, and
+        sector. This may be complicated since outer tracks have more sectors,
+        and bad sectors get remapped to different areas of the disk.
+    \item Move the disk arm to the correct cylinder and plate
+    \item Wait for the proper sector to appear
+    \item And on, and on, and on....
+\end{enumerate}
+
+\subsection{Abstraction}\label{sec:Abstraction} % (fold)
+Through the operating system applications can "see" abstract machines, which are
+convenient, and high level abstractions. \\
+Files are a good example of this. The hardware stores blocks of data of fixed
+size, and addressed by location on disk (surface, sector, track, ...). The
+operating system stores data in named files, that may be of arbitrary size, and
+are addressed by byte offset and length. This course we will discuss how
+abstractions are used an implemented.
+% subsection Abstraction (end)
+
+% MEMOOORRRIIIIES ALL ALONE ON THE PAAAAAVEMEEEEENT
+\subsection{A stroll down memory lane}\label{sub:A stroll down memory lane} % (fold)
+The first generation of computers were in 1945-1955. They mostly used magnetic
+drums for memory, plug boards and vacuum tubes for programs and CPUs, and they
+did not have operating systems. The second generation was between 1955 and 1965.
+These started using transistors for their CPUs, and batch systems, and could
+store multiple programs on a disk. They might use punch cards, or magnetic tapes
+to store the programs, and would print out the output. The standard process was
+to read the punch cards to magnetic tape, and then run the magnetic tape. The
+operator (NOT user) would put cards into the card reader. There also started
+being automatic job sequencing to transfer from one job to another without use
+input. \\
+Spooling: Simultaneous Peripheral Operation On Line. This is the overlap
+between I/O operation and another job. While executing a job, the OS would read
+the next job from card into disk (job queue), and output the results of the
+previous job through the printer. The job pool is a data structure, and allows
+the OS to select the next job to increase CPU utilisation. A concept still used
+in the modern day is print spooling. \\
+
+Terminology: We want to minimise latency / response time, the time it takes to
+perform a job or process data. This is measured in seconds. The \textbf{throughput} is the rate of
+performing work, for example the amount of data processed in a time unit. This
+uses the units bytes per second. The \textbf{utilisation} is the fraction of
+time that the CPU is performing useful tasks (and not running OS code). The
+\textbf{overhead} is the inverse of the utilisation, and measures the excess or
+indirect resources required to attain a goal. It is also a fraction, and where
+we want to maximise the utilisation, we want to minimise the overhead.
+\textbf{CPU usage} is the fraction of time that the CPU is executing
+instructions. This is not so relevant in this course, since we will assume that
+this is always the case. Utilisation + Time overhead = CPU usage. \\
+
+The third generation can be considered between 1965 and 1980. Here the use of
+integrated circuits started, and there started to be multiprogramming /
+time-sharing on these computers. This means that several jobs were kept in main
+memory at once, and the CPU was multiplexed, and would run them all "at once",
+by switching between them quickly. It is possible to switch between
+them when the program being run arrived to a "waiting instruction" (such as when
+waiting on peripherals such as the keyboard). This is multi-programming.
+Time-sharing (or multitasking / time-slicing) will switch when waiting for
+peripherals as with multi-programming, but also just after a period of time,
+even when not waiting for a peripheral. The goals here are to maximise
+utilisation, with a good response time. For benefits to multi-programming /
+time-sharing, we assume that \begin{itemize}
+    \item The CPU is always there, and it is wasteful to not use it
+    \item The CPU is much faster than the I/O
+    \item The memory is large enough for many programs
+    \item Peripherals can access memory directly (DMA - Direct Memory Access),
+        for example the printer can directly access the memory where the file it
+        is printing is stored.
+    \item There is more than one task to be accomplished at any given moment.
+\end{itemize}
+
+These assumptions require the following OS features: \begin{itemize}
+    \item I/O primitives - the ability to carry out I/O operations
+    \item Memory management (memory protection) - This saves the state of the
+        program that was interrupted by the OS to run a different program
+    \item A scheduler to manage the flow of jobs in and out of the CPU. It
+        decides what is running when.
+    \item The Spooler manages the slower I/O devices such as the printer, which
+        might take 10 seconds to print a page.
+\end{itemize}
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_1_von_neumann_architecture}
+    \caption{Von-Neumann architecture}
+\end{wrapfigure}
+We consider this through the Von-Neumann Architecture. This has a CPU, which
+makes I/O requests to peripheral devices, and receives interrupts from the same.
+These I/O devices have DMA access to the memory, which in turn sends
+instructions to the CPU cache. Additionally, the CPU may request data from the
+memory. \\
+The OS provides isolation. The memory of application A, and application B is in
+isolated areas of the memory, and as far as both of them can tell, they operate
+alone on the computer, with access to memory, registers, and a CPU that is only
+theirs, and no one else's. We may say that the OS provides resource management,
+it allocates resources in deciding what is running on the CPU, or what program
+gets which frames of memory at any given time. It can also optimise for
+different goals, be they efficiency, performance, or fairness. \\
+The fourth generation is considered from 1980 to modern day. This generation has
+personal computers with GUIs, that are often networked to file and computing
+servies, and include web computing, handheld devices, and smartphones. The fifth
+generation is considered the present, and has virtualisation / cloud computing,
+along with multiprocessor / multicore architectures.
+% subsection A stroll down memory lane (end)
+
+\subsection{Main components}\label{sub:Main components} % (fold)
+The main components of modern OSs are generally the program execution, process
+management, memory management, I/O and device drivers, the file system, the
+command interpreter, also known as the shell, or (G)UI, networking, (and to an
+extent protection and security, error detection, resource allocation).
+% subsection Main components (end)
+
+We use multi core architectures, since processors cannot keep up with demands.
+We solve this through parallelism across multiple processors / cores. This
+has many challenges for the OS, since some resources are shared, and some are
+not. The management for this is complex.
+
+Virtualisation is extending the existing interface to mimic the behaviour of
+another system. For example, dividing the hard drive into partitions. In reality
+there is only one hard drive, but it is logically divided into numerous drives.
+We also have virtual memory, each program is provided with what appears to be as
+much memory as it wants, starting at the beginning of the memory, and the OS
+handles its actual placement. Another example is virtual machines, where a
+machine is emulated, and another OS is run on top of it. The OS in question does
+not know it is not controlling real hardware. The software that achieves this is
+called a hypervisor (for example, VMware). Using VMs allows us to snapshot the
+VM, this is freezing a copy of the virtual machine in the specific state of said
+VM. You can also move a VM between hosts, scale the VMs to handle changing
+demand, and isolation between VMs running on the same hardware. However, there
+is a performance overhead to this.
+
+We have both mobile and desktop computing. Generally mobile computing is
+lighter, and less powerful, since it is running off a battery, and not the mains
+power supply.
+
+% section What is all this (end)
+
+\end{document}
