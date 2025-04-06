@@ -1,0 +1,265 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 3}
+\author{Gidon Rosalki}
+\date{2025-04-06}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Processes}\label{sec:Processes} % (fold)
+The process for an OS running programs is as follows: You take your code (for example in C), compile it into a .out
+file, which has a data segment, and an instructions segment. From here these are both loaded into memory. The memory has
+the stack which grows downwards towards the heap, the heap that grows upwards towards the stack, the data is stored
+under the heap, and the instructions / text under the data, and is then run on the CPU. So the CPU sits between both the
+instruction memory, and the data memory. \\
+Every iteration the execution is as follows: Fetch the instruction at PC, and save it in the instruction register (IR).
+Decode the instruction in IR. Execute (possibly using some registers). Write the results to the registers / memory. Move
+the PC on to the next instruction, and then repeat. Let us consider the instruction \lstinline[columns=fixed]{x = x + y}.
+We shall suppose that $x$ is stored at 100, and $y$ is stored at 104. Our required asm instructions are:
+\begin{lstlisting}
+    lw r1, 100
+    lw r2, 104
+    add r3, r1, r2
+    sw r3, 100
+\end{lstlisting}
+One may follow the execution steps above for the given asm listing. The execution contexts are as follows: The CPU
+stores the values in the registers. These include the PC, standard registers, and other "special registers" such as the
+stack pointer (SP), which points to the root of the data. The memory stores what's written in the memory, such as the
+code/text, data, stack, heap, and some internal data in the OS relevant to the program such as the user, priority, and
+so on. \\
+
+A \textbf{process} is an instance of a program execution. It may be considered an abstraction of "an individual
+computer". The processes are OS objects, they provide context of execution, and the process exists only for the
+duration of the execution. These processes are also called \textbf{jobs}. A process is executing on a CPU when it is
+resident in the CPU registers. For non-resident processes, the context part that was "in the CPU" is stored in a special
+location in memory. \\
+So what's the difference between a process and a program? A \textbf{program} is a passive entity, and a process is
+active. A program becomes a process when an executable file is loaded into memory. This is done by the \textbf{loader},
+which is a component of the OS. There is more to a process than just a program, a program is just part of the process
+state, and there is less to a process than a program, since a program can invoke more than one process. \\
+A process needs an address space, so here is a simplified overview. The address space is a set of accessible memory
+addresses by the process. This will only be part of the memory, not all of it. We may consider that this space is
+defined by 2 values, the base and the bound. So the process can only access addresses in $\left[\text{base}, \text{base}
++ \text{bound} \right]$. This is verified by the CPU in hardware. Protection / isolation ensures that processes cannot
+access each others memory. Address translation is also provided, this is when a process specifies address $x$, it
+actually means $\text{base} + x$. So this way the same pointer address in different processes points to different points
+in memory. The OS address space is called \textbf{kernel memory}, and the rest is \textbf{user memory}.. \\
+So what do we need to save when switching between processes 1 and 1? We need to save the context, and copy everything in
+the CPU. We need not save the memory, since that is in that process' address space, and thus it will remain unaffected.
+So we'd need to save the PC, but not the code, and the SP, but not the entire stack. \\
+A process is represented in the OS through a Process Control Block.. This contains \begin{itemize}
+    \item Process ID
+    \item Process state
+    \item User - Needed for protection, what is the process allowed to do?
+    \item Accounting information
+    \item Priority - needed for scheduling decisions, when should the process run?
+    \item Allocated memory - Point to relevant data in other OS data structures.
+    \item Open files
+    \item Open communication channels
+    \item Storage space for the CPU state (registers) - for when the process is not being run, and from here it will be
+        restored when it is run again.
+\end{itemize}
+It should be noted that this is a naive overview, which will be discussed in further depth later on in the course.
+
+A process will change state over its life cycle: \begin{itemize}
+    \item new: The process is being created
+    \item running: Instructions are being executed
+    \item waiting/blocked: The process is waiting for some event to occur
+    \item ready: The process is waiting to be assigned to a processor
+    \item terminated: The process has finished execution.
+\end{itemize}
+
+\begin{center}
+    \begin{tikzpicture}[node distance=4cm]
+        \node[state] (q0) {new};
+        \node[state, right of=q0] (q1) {ready};
+        \node[state, below right of=q1] (q2) {waiting};
+        \node[state, right of=q1] (q3) {running};
+        \node[state, right of=q3] (q4) {terminated};
+
+        \draw   (q0) edge[->, above] node{admitted} (q1)
+                (q1) edge[->, bend right, below] node{scheduler dispatch} (q3)
+                (q3) edge[->, bend right, above] node{interrupt} (q1)
+                (q3) edge[->, bend left, below right] node{IO or event wait} (q2)
+                (q2) edge[->, bend left, below left] node{IO or event completion} (q1)
+                (q3) edge[->, below right] node{exit} (q4)
+                ;
+    \end{tikzpicture} \\
+\end{center}
+
+\subsection{Scheduling}\label{sub:Scheduling} % (fold)
+Which process should get to run on the CPU, and for how long? There are many algorithms and methods for choosing. We can
+for example just choose the process that has not run for the longest time. Occasionally schedulers and dispatchers are
+separated. The Scheduler decides which process should run, and for how long. The dispatcher is the module responsible
+for executing the CPU scheduler decisions, such as context switching, saving state, and so on.
+
+To recap, when we want to context switch between processes, we must \begin{itemize}
+    \item Save the processor context (including PC, and other registers)
+    \item Update the PCB with the new state and accounting information
+    \item Move the PCB to the appropriate queue (ready, blocked/waiting, etc)
+    \item Update the PCB of the selected process
+    \item Update memory-management data structures
+    \item Restore the context of the selected process
+\end{itemize}
+Remember, this is a naive overview, which will change to be more in depth in the future.
+
+Let us consider creating processes using \lstinline[columns=fixed]{fork}. \lstinline[columns=fixed]{fork} is the system
+call that creates processes. The child and parent results from fork are \textbf{identical} (aside from the process
+number, which is unique). \\
+
+Sometimes processes want to cooperate with each other, for example sharing information, breaking a large task into
+numerous smaller tasks, and so on. On the other hand, processes should be protected from each other. So we use Inter
+Process Communication (IPC), which is provided by the OS, through very specific system calls, but be warned, this comes
+at a very high overhead. There are many ways to achieve IPC. We can specify a segment in the memory that is shared, and
+all processes can access it. This is often done through files, one writes to the file, and the other reads from it. We
+can also use the socket interface to exchange messages through a communication channel. Sometimes this is classified
+into shared memory, or message passing systems. This overall creates many synchronisation problems.
+% subsection Scheduling (end)
+% section Processes (end)
+
+\section{Threading}\label{sec:Threading} % (fold)
+A \textbf{thread} is a path of execution. Until now, each process has had one thread of control, which was defined by
+the PC and the stack. In multithreading, we have multiple independent execution paths. Though there is a shared context
+(memory contents, open files, and so on). Many applications need to perform more than one task at once. Consider the web
+browser, it needs to both retrieve data from the network (slow), and display images of data. Also the server, which
+needs to handle many clients at once, where handling each client is again a slow process. Threading allows concurrency
+in performing tasks. Without concurrency a word processor would wait on each keystroke, evicting the CPU, and no other
+tasks in the word processor would run until the keystroke has interrupted the CPU again. If each task is a process then
+it must use IPC liberally, which is very slow. However, if we use a multi threaded process, each thread has its own
+registers (including PC and stack), and all the threads share the program code, data, and files.
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_3_multi_threaded}
+    \caption{Multi threaded processes}
+\end{wrapfigure}
+A process virtualises the \textbf{computer}, each running application sees an abstract computer dedicated to itself.
+However, a thread virtualises the \textbf{core}, an application can be structured as if it will run on multiple cores,
+regardless of how many are actually available. Concurrency - threads share a single physical core (time slicing), and
+true parallelism is when threads run on distinct processors. \\
+The kernel maintains context information for the process and the threads. Blocking a thread does not have to block
+the process. The disadvantage of threading is that switching between threads requires the kernel. \textbf{Kernel level threads}
+are managed by the kernel, but run in \textbf{user} space. \textbf{Kernel threads} are managed by the kernel, and run in
+\textbf{kernel} space. These are used for structuring the OS. Each process has at least one thread The CPU state is
+actually stored per thread. Scheduling is performed per thread, and the \textbf{Thread Control Block (TCB)} points to
+PCB (at least conceptually). \\
+Kernel level threads have proven more flexible than processes, but we still need to muck around a lot with the
+scheduler, and system calls. In \textbf{user level threads}, all thread management is done by the user application /
+library (in user mode). The kernel is \textbf{not aware} of the existence of threads. Thread switching additionally does
+not need kernel mode privileges. Scheduling is application specific. However, This has the major problems that system
+calls by threads (including I/O), will \textbf{block} the whole process. A single thread can monopolise the time slice,
+thus starving the other threads within the task. \\
+
+Benefits of threads: It's around 30-100 times faster to create a new thread than a process. Termination is also faster.
+It is also about 5 times faster to switch between 2 threads within the same process, than to switch processes. Threads
+within the same process share memory and files, and thus they can communicate without invoking the kernel/IPC, and it
+is thus much faster.
+\begin{table}[h!]
+     \centering
+     \begin{tabular}{|p{0.3\linewidth}|p{0.3\linewidth}|p{0.3\linewidth}|}
+         \hline
+         Processes & Kernel level threads & User level threads \\ \hline
+         Protected from each other, require the OS to communicate & \multicolumn{2}{|p{0.6\linewidth}|}{Share address space, simple communication, useful for application structuring}   \\ \hline
+         High overhead, all operations require a high cost kernel trap & Medium overhead, operations require a low cost kernel trap & Low overhead, everything is done at the user level \\ \hline
+         \multicolumn{2}{|p{0.6\linewidth}|}{Independent, if one blocks this does not affect the others} & If a thread blocks, the whole process is blocked \\ \hline
+         \multicolumn{2}{|p{0.6\linewidth}|}{Can run in parallel on different processors in a multiprocessor} & All share the same processor, so only one
+         runs at a time \\ \hline
+         \multicolumn{2}{|p{0.6\linewidth}|}{System specific API, programs are not portable} & The same thread library may be available on several systems \\ \hline
+         \multicolumn{2}{|p{0.6\linewidth}|}{One size fits all} & Application specific management is possible \\ \hline
+     \end{tabular}
+     \caption{Threads vs processes summary}
+ \end{table}
+
+IS the CPU "aware" of the existence of \begin{itemize}
+    \item User level threads
+    \item Kernel level threads
+    \item Both user and kernel level threads
+    \item Neither user nor kernel level threads
+\end{itemize}
+The CPU is unaware of all these, they happen at the OS level.
+
+\subsubsection{Hardware level threads / hyperthreading}\label{sec:Hardware level threads / hyperthreading} % (fold)
+Intel's technology since the pentium 4 (2002). Each core, even though it is physically a single core, presents as 2 to
+the OS. The management (swithcing between hyper threads) is handled by the CPU in hardware, and it is more efficient
+than kernel level threads. Currently each core is split into 2 hyperthreads, so a 4 core machine will appear to have 8
+cores to the OS.
+% subsubsection Hardware level threads / hyperthreading (end)
+% section Threading (end)
+
+\end{document}
