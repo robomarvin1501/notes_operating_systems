@@ -17,7 +17,7 @@
 \usepackage{color}
 \usepackage{hyperref}
 \usepackage{tikz}
-\usetikzlibrary{automata, positioning, arrows}
+\usetikzlibrary{automata, positioning, arrows, calc}
 \graphicspath{ {./images/} }
 \usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
 
@@ -124,7 +124,7 @@ in memory. The OS address space is called \textbf{kernel memory}, and the rest i
 So what do we need to save when switching between processes 1 and 1? We need to save the context, and copy everything in
 the CPU. We need not save the memory, since that is in that process' address space, and thus it will remain unaffected.
 So we'd need to save the PC, but not the code, and the SP, but not the entire stack. \\
-A process is represented in the OS through a Process Control Block.. This contains \begin{itemize}
+A process is represented in the OS through a Process Control Block. This contains \begin{itemize}
     \item Process ID
     \item Process state
     \item User - Needed for protection, what is the process allowed to do?
@@ -147,11 +147,11 @@ A process will change state over its life cycle: \begin{itemize}
 \end{itemize}
 
 \begin{center}
-    \begin{tikzpicture}[node distance=4cm]
+    \begin{tikzpicture}[node distance=4cm, state/.style={circle, draw, minimum size=2cm}]
         \node[state] (q0) {new};
         \node[state, right of=q0] (q1) {ready};
-        \node[state, below right of=q1] (q2) {waiting};
         \node[state, right of=q1] (q3) {running};
+        \node[state, below=2cm of $(q1)!0.5!(q3)$] (q2) {waiting};
         \node[state, right of=q3] (q4) {terminated};
 
         \draw   (q0) edge[->, above] node{admitted} (q1)
