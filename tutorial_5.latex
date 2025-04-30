@@ -1,0 +1,332 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage{hyperref}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 5 - Concurrent programming problems}
+\author{Gidon Rosalki}
+\date{2025-04-29}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+
+\section{The general critical section problem}\label{sec:The general critical section problem} % (fold)
+You have $n$ processes $p_0, \dots, p_{n - 1}$, and the problem is to implement a general mechanism for entering and
+leaving critical sections. This has the following success criteria: \begin{enumerate}
+    \item Mutual Exclusion: Only one process is in the critical section at a time
+    \item Progress: If processes want to get into the critical section one of them will eventually get into the critical
+        section.
+    \item Starvation free: No process will wait indefinitely while other processes continuously enter the critical
+        section (also called “Bounded waiting”).
+    \item Generality: It works for $n$ processes, and $m$ processors
+    \item No blocking in the remainder: No process running outside its critical section may block other processes
+\end{enumerate}% section The general critical section problem (end)
+
+\subsection{Dining philosophers problem}\label{sub:Dining philosophers problem} % (fold)
+Philosophers spend their life alternating between eating and thinking. Eating requires 2 chopsticks, and the
+philosophers, who are all sitting around a circular table, all have one chopstick to the right, and one to the left. So,
+the order goes:
+\begin{enumerate}
+    \item Pick up chopsticks
+    \item Eat
+    \item Put down chopsticks
+    \item Think
+\end{enumerate}
+The philosophers pick up 1 chopstick at once, and 2 philosophers cannot simultaneously hold a chopstick. We have the
+following proposed solution: We use chopstick 5 as a semaphore, and initialise \lstinline[columns=fixed]{chopstick[5] = 1}
+and may then carry out the following algorithm:
+
+\begin{lstlisting}
+while (true) {
+    down(chopstick[(i + 1) % 5)
+    down(chopstick[i])
+    eat
+    up(chopstick[(i + 1) % 5)
+    up(chopstick[i])
+    think
+}
+\end{lstlisting}
+However, this can cause deadlocks. Consider when they all simultaneously reach for the left chopstick, then they are all
+stuck waiting on the right chopstick. This problem demonstrates some of the fundamental limitations of deadlock free
+synchronisation Here, there is no symmetric solution (no solution where every philosopher has the same code), only
+asymmetric solutions. \\
+For example, we can execute different code for odd / even, or even randomly, for example Lehmann-Rabin Algorithm. This
+does not solve the problem, but it does on average solve the problem:
+\pagebreak
+\begin{lstlisting}
+repeat
+    if coinflip() == 0 then                 // randomly decide on a first chopstick
+        first = left
+    else
+        first = right
+    end if
+    wait until chopstick[first] == false
+    chopstick[first] = true                 // wait until it is available
+    if chopstick[~first] == false then      // if second chopstick is available
+        chopstick[~first] = true            // take it
+        break
+    else
+        chopstick[first] = false            // otherwise drop first chopstick
+    end if
+end repeat
+eat
+chopstick[left] = false
+chopstick[right] = false
+\end{lstlisting}
+This can also cause deadlocks, thanks to starvation, and there can be a case where progress is not met, but as we
+increase the number of philosophers, the probability of this tends to 0. On average, given enough time, this code works.
+\\
+Here, every thread begins by flipping a coin. 0 indicates starting with the left chopstick, and 1 with the right. It
+waits until the first chopstick is available, and then if the second is not available, it drops the first chopstick, and
+starts again. If the second is available, then it takes it, eats, and then stops eating releasing the chopstick. This
+way, if the second chopstick is not available, then it will ensure it is not stopping another philosopher from taking
+their first chopstick.
+% subsection Dining philosophers problem (end)
+
+\subsection{Bounded Buffer problem}\label{sub:Bounded Buffer problem} % (fold)
+Here we have a cyclic buffer that can hold up to $n$ items. There are both \textit{producers} and \textit{consumers}
+using the buffer. We need to ensure that a producer cannot add data to the buffer if it is full, and a consumer cannot
+consume data from the buffer if it is empty. Since the buffer is a shared resource, protection is required. We will
+achieve this using counting semaphores, where the number in the semaphore represents the number of resources of some
+type. \\
+Our solution will use 3 semaphores: \begin{enumerate}
+    \item Semaphore \lstinline[columns=fixed]{mutex} initialised to the value 1. This protects the buffer (only one thread may access it at once)
+    \item Semaphore \lstinline[columns=fixed]{fill_count} initialised to the value 0. This indicates how many items in the buffer are available to
+        be read
+    \item Semaphore \lstinline[columns=fixed]{empty_count} initialised to the value $n$. This indicates how many items in the buffer are available
+        to be written.
+\end{enumerate}
+We then have the following producer, and consumer, code:
+\begin{multicols}{2}
+    Producer:
+    \begin{lstlisting}
+while (true) {
+    produce_item();
+    down (emptyCount);
+    down (mutex);
+
+    add_item();
+    up (mutex);
+    up (fillCount);
+}
+    \end{lstlisting}
+\columnbreak
+    Consumer:
+\begin{lstlisting}
+while (true) {
+    down (fillCount);
+    down (mutex);
+    pop_item();
+
+    up (mutex);
+    up (emptyCount);
+    consume_item();
+}
+\end{lstlisting}
+\end{multicols}
+% subsection Bounded Buffer problem (end)
+
+\subsection{Reader-writers problem}\label{sub:Reader-writers problem} % (fold)
+A data structure is shared among a number of concurrent processes: \begin{itemize}
+    \item Readers that only read the data, and do not perform updates
+    \item Writers that can both read \textbf{and} write
+\end{itemize}
+One must allow multiple readers to read at the same time, but only \textbf{one} writer can access the shared data at any
+time. While a writer is writing to the data structure, then the readers should be blocked from reading. This follows
+since we don't want the data to change while reading is occurring, or for one writer to be working with outdated data.
+
+\subsubsection{Solution 1}\label{sec:Solution 1} % (fold)
+We use the following shared data: \begin{itemize}
+    \item An integer \lstinline[columns=fixed]{read_count} initialised to 0. This represents the number of readers
+    \item Semaphore \lstinline[columns=fixed]{read_count_mutex}, initialised to 1. This protects read\_count
+    \item Semaphore \lstinline[columns=fixed]{write} initialised to 1. This makes sure that the writer doesn't use data at the same time
+        as any readers.
+\end{itemize}
+
+\begin{multicols}{2}
+Writer:
+\begin{lstlisting}
+while (true) {
+    down (write);
+    perform_writing();
+    up (write);
+}
+\end{lstlisting}
+
+\columnbreak
+
+Reader:
+\begin{lstlisting}
+while (true)
+    {
+        down (read_count_mutex);
+        read_count++;
+        if (read_count == 1)        // The first reader blocks writing
+            {
+                down (write);       // lock from writers
+            }
+        up (read_count_mutex);
+
+        perform_reading ();         // CS
+
+        down (read_count_mutex);
+        read_count--;
+        if (read_count == 0)        // The last reader unblocks writing
+            {
+                up (write);
+            }
+        up (read_count_mutex);
+    }
+\end{lstlisting}
+\end{multicols}
+
+However, this solution is imperfect. What if a writer is waiting to write, but there are always readers that are
+reading? The \lstinline[columns=fixed]{write} semaphore will thus never be released, and the writer will thus never be
+able to write. Writers are therefore subject to starvation.
+% subsubsection Solution 1 (end)
+
+\pagebreak
+\subsubsection{Solution 2 - Writer priority}\label{sec:Solution 2 - Writer priority} % (fold)
+We use extra semaphores, and variables: \begin{itemize}
+    \item Semaphore \lstinline[columns=fixed]{read} initialised to 1. This inhibits readers when a writer wants to write.
+    \item Integer \lstinline[columns=fixed]{write_count} initialised to 0. This counts waiting writers.
+    \item Semaphore \lstinline[columns=fixed]{write_count_mutex} initialised to 1. This controls the updating of
+        \lstinline[columns=fixed]{write_count}
+    \item \lstinline[columns=fixed]{queue} semaphore, initialised to 1, and used only in the reader.
+\end{itemize}
+
+\begin{multicols}{2}
+The writer:
+\begin{lstlisting}
+while (true)
+    {
+        down (write_count_mutex);
+        write_count++;  // Counts number of waiting writers
+        if (write_count == 1)
+            {
+                down (read);
+            }
+        up (write_count_mutex);
+
+        down (write);
+        write ();       // Writing is performed – one writer at a time
+        up (write);
+
+        down (write_count_mutex);
+        write_count--;
+        if (write_count == 0)
+            {
+                up (read);
+            }
+        up (write_count_mutex);
+    }
+\end{lstlisting}
+
+\columnbreak
+
+The reader:
+\begin{lstlisting}
+while (true)
+    {
+        down (queue);
+        down (read);
+        down (read_count_mutex);
+        read_count++;
+        if (read_count == 1)
+            {
+                down (write);
+            }
+        up (read_count_mutex);
+        up (read);
+        up (queue);
+
+        read ();
+
+        down (read_count_mutex);
+        read_count--;
+        if (read_count == 0)
+            {
+                up (write);
+            }
+        up (read_count_mutex);
+    }
+\end{lstlisting}
+\end{multicols}
+% subsection Reader-writers problem (end)
+
+There are now some questions from previous exams. They are not replicated here. It is important to remember that
+questions on critical sections, and all this content is common exam content.
+
+\end{document}
