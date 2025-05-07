@@ -180,8 +180,8 @@ first short job stops, a new short job arrives, then the long job will never run
 % subsubsection Shortest Job First/Next (SJF/SJN) (end)
 
 \subsubsection{Shortest Remaining Time First (SRTF)}\label{sec:Shortest Remaining Time First (SRTF)} % (fold)
-Often called Shortest Remaining Time. This is a preemptive variant of SJF. If a new process arrives with a required CPU
-time which is smaller than the remaining time of the current process, current executing process, then preempt it. This
+Often called Shortest Remaining Time. This is a preëmptive variant of SJF. If a new process arrives with a required CPU
+time which is smaller than the remaining time of the current process, current executing process, then preëmpt it. This
 way, short processes are handled very quickly. However, this has the same problem as SJF, in that job execution times
 are not necessarily known, and it can cause starvation.
 % subsubsection Shortest Remaining Time First (SRTF) (end)
@@ -191,12 +191,12 @@ The CPU is allocated the process with the highest priority. A priority is associ
 a value in a fixed range of numbers, where we use \textbf{low} numbers to represent \textbf{higher} priorities.
 Processes with the same priority are ordered in FCFS. Note that SJF is a special case of this, where the priority is the
 time required on the CPU. This has the problems of not being starvation free, and is not necessarily able to allow
-preempting.
+preëmpting.
 
 Priorities can be defined internally, whereupon they uses a measurable quantity. This includes time limits, memory
 requirements, memory consumption, and so on. It may also be defined externally, usually by the user. In this case they
 are usually ranked by importance, consider 2 people paying for time on a cloud service, one of whom is paying for higher
-priority than the other. Priority scheduling has a preemptive version. However, there are major problems, with infinite
+priority than the other. Priority scheduling has a preëmptive version. However, there are major problems, with infinite
 blocking, and starvation. We can solve this through ageing, where we gradually increase the priority of processes that
 wait for a long time.
 % subsubsection Priority scheduling (end)
@@ -205,7 +205,7 @@ wait for a long time.
 A small unit of time, called a quantum, is defined. This is generally in the range of 10-100ms. The ready queue is a
 circular FIFO queue. The CPU goes around the ready queue, and allocates each process the CPU time of up to 1 time
 quantum. When the process uses less than 1 quantum, it voluntarily releases the CPU, and when it is longer, then the
-process is preempted.
+process is preëmpted.
 % subsubsection Round Robin (RR) (end)
 
 % subsection Algorithms (end)
