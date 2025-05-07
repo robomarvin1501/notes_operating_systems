@@ -126,16 +126,18 @@ Finally, we also want to minimise \textbf{turnaround time}, the amount of time n
 
 Scheduling is difficult! To describe things formally, each process has a requested running time. We do not know the
 running time, and sometimes cannot even estimate it, and we can not assume that the processes arrive at the same time.
-Even if these two assumptions are true, scheduling is NP-hard, given two CPUs or more. We will discuss one CPU later.
-Since it is NP-hard, we will need heuristics (i.e. we have no formal proof, but by running lots of experiments, we can
-say that one thing is better than the other). % TODO link to complexity
+Even if these two assumptions are true, scheduling is
+\href{https://robomarvin1501.github.io/notes_computability_complexity/lecture_6.pdf}{NP-hard}, given two CPUs or more.
+We will discuss one CPU later. Since it is
+\href{https://robomarvin1501.github.io/notes_computability_complexity/lecture_6.pdf}{NP-hard}, we will need heuristics
+(i.e. we have no formal proof, but by running lots of experiments, we can say that one thing is better than the other).
 
 The scheduling algorithms have some properties. All the processes should have \textbf{fair} use of the CPU. We need to
 avoid \textbf{starvation}, which is caused when a process can never get to use the CPU, for some reason (consider one
-thread always block another). \textbf{Preëmption} % TODO umlaut second e
-is whether or not a process can be stopped in the middle of execution, non voluntarily.
-\textbf{Offline/online} - online algorithms can get the input of "running time", and should make decisions only based on
-current data. % TODO check against lecture
+thread always block another). \textbf{Preëmption} is whether or not a process can be stopped in the middle of execution,
+non voluntarily. \textbf{Offline/online} - An offline algorithm gets all the input at the outset. Online gets the input
+piecemeal, meaning that at every instant you only receive part of the input. You thus need to produce output based off
+your current knowledge.
 
 There are some different types of scheduling. \begin{itemize}
     \item Batch: The jobs need not the intervention of the use, for example training a neural network. The OS is the
@@ -205,14 +207,86 @@ wait for a long time.
 A small unit of time, called a quantum, is defined. This is generally in the range of 10-100ms. The ready queue is a
 circular FIFO queue. The CPU goes around the ready queue, and allocates each process the CPU time of up to 1 time
 quantum. When the process uses less than 1 quantum, it voluntarily releases the CPU, and when it is longer, then the
-process is preëmpted.
+process is preëmpted. \\
+
+Assuming the cost of context switching is 0, is RR always better than FCFS? Let us consider having 10 jobs, all starting
+at 0, and all of them requiring 100 seconds. Let the RR quantum be 1 second. In this case, both FCFS, and RR will finish
+at the same time, but the average response time is much worse under RR, since a job can run, then be preëmpted, and
+continue to execute only far in the future (100 quanta later).
+
+The performance of RR will depend on the running time distribution of the jobs. It is poor if the jobs variance is
+small. Heuristic measurement has shown RR to be good for "real life" jobs. However, context switching hurts the
+performance a lot. A context switch means running other jobs, which changes the content of the cache, so even assuming a
+0 time context switch, the performance can still be bad.
 % subsubsection Round Robin (RR) (end)
 
+\subsubsection{Multilevel Queue Scheduling}\label{sec:Multilevel Queue Scheduling} % (fold)
+Algorithm: \begin{enumerate}
+    \item Partition the ready queue into several separate groups
+    \item Each group has its own scheduling algorithm
+    \item Scheduling is being done among the queues, for example Fixed-Priority preëmptive scheduling, pr time slice
+        between the queues
+\end{enumerate}
+
+Processes are classified into different groups, foreground (interactive) processes, and background (batch) processes.
+This being starvation free / preëmptive is dependent on the implementation.
+
+To resolve potential starvation, we can add feedback. When a process finishes its execution, it gets feedback, and can
+move to a different queue. Consider using too much CPU time, and being moved to a lower priority queue. Or perhaps a job
+waits too long, and it can then move to a higher priority queue (like ageing). The multilevel feedback queue scheduler
+is defined by the number of queues, the scheduling algorithm for each queue, the procedure used to determine what queue
+a process enters when it needs a service, and the procedures to determine when to upgrade/demote a process.
+% subsubsection Multilevel Queue Scheduling (end)
 % subsection Algorithms (end)
 % section CPU scheduling (end)
-
 \section{Parallel systems}\label{sec:Parallel systems} % (fold)
+These are for when not only do I have many jobs to be run, but I also have many processors on which to run them.
+Supercomputers are extreme examples of these.
 
-% section Parallel systems (end)
+\subsection{Supercomputers}\label{sub:Supercomputers} % (fold)
+Supercomputers provide an extremely high speed of calculation. They are usually comprised of many computers connected
+together, called nodes, with their own OSs, and are connected via an extremely low latency, and high speed internal
+network. Supercomputers run parallel jobs, each job can use several processors / nodes, and usually run \textbf{without}
+preëmption. Structures such as those that power supercomputers can also be used to power cloud computing.
+
+\subsection{Scheduling}\label{sub:Scheduling} % (fold)
+In supercomputers, the scheduler is not part of hte OS, and is instead located above the nodes. Its purpose is to
+determine which processors will be allocated to which jobs. A known scheduler is SLURM. You can configure SLURM with
+other schedulers, such as FCFS, SJF, and backfilling scheduler. \\
+
+In the offline settings, we mentioned that SJF achieves the minimal waiting time, so it is easy to solve the problem for
+\textbf{one} processor. Solving for 2 or more processors is
+\href{https://robomarvin1501.github.io/notes_computability_complexity/lecture_6.pdf}{NP-hard}, however, there are
+approximation algorithms for this. The problem is, in the real world, these approximation algorithms perform poorly, or
+are too computationally expensive in comparison to heuristics.
+% subsection Scheduling (end)
+
+\subsection{EASY scheduler}\label{sub:EASY scheduler} % (fold)
+FCFS is not good, because it can delay processes, even when unnecessary. Simple backfilling (seeing that a job that has
+arrived later can be run before an earlier job, since we have the processor availability for the second, but not the
+first, so we run the second first), is not good, because it might cause starvation. EASY is the best of both worlds, it
+is relatively fair, and uses backfilling based on arrival times. \\
+EASY keeps 2 lists: a list of running jobs, where it is saved on which processors they are running, and their estimated
+termination time, and a list of waiting / arriving jobs, where it also saves how many processors each job needs, its
+expected running time, and they are sorted by their arrival time.
+
+The EASY scheduler operates as follows: \begin{enumerate}
+    \item Schedule jobs on available processors in FCFS order
+    \item Make a reservation for the first job which cannot run (Due to insufficient processors or the like)
+    \item Schedule additional jobs provided that they do not conflict with the reservations
+\end{enumerate}
+
+Backfilling requires that the backfilled jobs terminate before the reservations, or that the backfill \textbf{only} uses
+processors not required for the reservations.
+
+% subsection EASY scheduler (end)
+
+\subsection{Running time estimation}\label{sub:Running time estimation} % (fold)
+When users submit jobs, they provide: The number of processors to use, and an estimate of the job runtime. Estimates are
+used to predict when processors will become free for reservation. They are also used to verify that the backfill job will
+terminate before the reservation. If it does not, then it will be killed.
+% subsection Running time estimation (end)
+
+% subsection Supercomputers (end)% section Parallel systems (end)
 
 \end{document}
