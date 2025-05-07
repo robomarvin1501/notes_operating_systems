@@ -115,7 +115,7 @@ comparison to previous years.
 \section{CPU scheduling}\label{sec:CPU scheduling} % (fold)
 \subsection{Introduction}\label{sub:Introduction} % (fold)
 Scheduling is to determine which process runs in each one of the current CPUs (consider the library in exercise 2, it
-used a round robin scheduler). The scheduling is the job of the operatin system. The OS scheduler decides what job to
+used a round robin scheduler). The scheduling is the job of the operating system. The OS scheduler decides what job to
 run, and the dispatcher is responsible for making context switches, i.e. switching between the processes, which is
 carrying out the commands of the scheduler.
 
@@ -132,7 +132,7 @@ say that one thing is better than the other). % TODO link to complexity
 
 The scheduling algorithms have some properties. All the processes should have \textbf{fair} use of the CPU. We need to
 avoid \textbf{starvation}, which is caused when a process can never get to use the CPU, for some reason (consider one
-thread always block another). \textbf{Preemption} % TODO umlaut second e
+thread always block another). \textbf{Preëmption} % TODO umlaut second e
 is whether or not a process can be stopped in the middle of execution, non voluntarily.
 \textbf{Offline/online} - online algorithms can get the input of "running time", and should make decisions only based on
 current data. % TODO check against lecture
@@ -154,7 +154,7 @@ There are some different types of scheduling. \begin{itemize}
 
 \subsubsection{Measurement}\label{sec:Measurement} % (fold)
 We measure the performance as follows: \begin{itemize}
-    \item CPU utilisiation is $\displaystyle\frac{\text{Actual running time} }{\text{Total running time} }$. Note, this
+    \item CPU utilisation is $\displaystyle\frac{\text{Actual running time} }{\text{Total running time} }$. Note, this
         includes the time for context switches
     \item Average turn around time: $\displaystyle\frac{\text{Sum of time spent running jobs and context switches}
         }{\text{Number of jobs} }$
