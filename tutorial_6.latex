@@ -1,0 +1,218 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 6 - Scheduling}
+\author{Gidon Rosalki}
+\date{2025-05-07}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+
+As opposed to lots of mathematical courses, this tutorial will mainly be backed by heuristics, as opposed to actual
+proofs that certain things are optimal. We will prove that some things are more optimal than others, but not that one
+heuristic is more optimal than another.
+
+\section{Ex3}\label{sec:Ex3} % (fold)
+In Ex3 we will implement a MapReduce library. The map reduce pattern is very common, and is made of a combination of the
+\lstinline[columns=fixed]{map} and \lstinline[columns=fixed]{reduce} concepts. \lstinline[columns=fixed]{map} applies an
+independent function over an input, consider mapping a function that squares the input to an array of numbers, each
+element can be applied independently. \lstinline[columns=fixed]{reduce} is a function that gathers the result by an
+accumulative function, for example \lstinline[columns=fixed]{sum}. The important concept here is that we can use
+\textit{parallelism} to accelerate this process.
+
+Consider the example of counting how many times each letter appears in a file. We can do this in the following stages:
+\begin{itemize}
+    \item Preprocessing: Get all the words of the file
+    \item Map: Count how many times each character of each string appears in it
+    \item Sort: For each possible character, get all the counts from all strings
+    \item Reduce: For each character, sum the number of appearances
+\end{itemize}
+It is important to note that between Map and Sort there is a barrier, the sort needs to wait for all the chatacters to
+have been counted, and before we can reduce, we need to wait for the sort to finish. \\
+To achieve this the file is split into substrings, each substring has its letter frequencies counted, then the
+frequencies are sorted (so all the 'a's are together, and all the 'b's, and so on), and then in the reduce phase, we can
+sum together all the relevant frequency counts. \\
+
+This year, we will be using C++ threads, rather than C posix threads, so the solution will be rather different in
+comparison to previous years.
+% section Ex3 (end)
+
+\section{CPU scheduling}\label{sec:CPU scheduling} % (fold)
+\subsection{Introduction}\label{sub:Introduction} % (fold)
+Scheduling is to determine which process runs in each one of the current CPUs (consider the library in exercise 2, it
+used a round robin scheduler). The scheduling is the job of the operatin system. The OS scheduler decides what job to
+run, and the dispatcher is responsible for making context switches, i.e. switching between the processes, which is
+carrying out the commands of the scheduler.
+
+We want to maximise \textbf{utilisation} - i.e. the CPU time of "relevant" instructions (not context switching), and keep the CPU
+as busy as possible. We also want to maximise \textbf{throughput}, i.e. maximise the number of completed processes in a
+time unit. We want to minimise \textbf{waiting time}, the amount of time a process has been waiting in the ready queue.
+Finally, we also want to minimise \textbf{turnaround time}, the amount of time needed to execute a particular process.
+
+Scheduling is difficult! To describe things formally, each process has a requested running time. We do not know the
+running time, and sometimes cannot even estimate it, and we can not assume that the processes arrive at the same time.
+Even if these two assumptions are true, scheduling is NP-hard, given two CPUs or more. We will discuss one CPU later.
+Since it is NP-hard, we will need heuristics (i.e. we have no formal proof, but by running lots of experiments, we can
+say that one thing is better than the other). % TODO link to complexity
+
+The scheduling algorithms have some properties. All the processes should have \textbf{fair} use of the CPU. We need to
+avoid \textbf{starvation}, which is caused when a process can never get to use the CPU, for some reason (consider one
+thread always block another). \textbf{Preemption} % TODO umlaut second e
+is whether or not a process can be stopped in the middle of execution, non voluntarily.
+\textbf{Offline/online} - online algorithms can get the input of "running time", and should make decisions only based on
+current data. % TODO check against lecture
+
+There are some different types of scheduling. \begin{itemize}
+    \item Batch: The jobs need not the intervention of the use, for example training a neural network. The OS is the
+        thing that schedules the process, and the only thing that matters is the completion of the jobs.
+    \item Interactive: Users are supplying input, and output, so the scheduling needs to focus on responding quickly to
+        the user input (consider using a web browser / IDE)
+    \item Real Time: The execution should be completed before a given time (a deadline). RTOSs are generally used in
+        industrial contexts, or cars, where it needs to be certain that tasks will finish in set amounts of time.
+\end{itemize}
+
+% subsection Introduction (end)
+
+\subsection{Algorithms}\label{sub:Algorithms} % (fold)
+
+% TODO add calculation examples
+
+\subsubsection{Measurement}\label{sec:Measurement} % (fold)
+We measure the performance as follows: \begin{itemize}
+    \item CPU utilisiation is $\displaystyle\frac{\text{Actual running time} }{\text{Total running time} }$. Note, this
+        includes the time for context switches
+    \item Average turn around time: $\displaystyle\frac{\text{Sum of time spent running jobs and context switches}
+        }{\text{Number of jobs} }$
+    \item Average waiting time: $\displaystyle\frac{\text{Time spent waiting for each job to start running}
+        }{\text{Number of jobs} }$
+    \item Throughput: $\displaystyle\frac{\text{Finished jobs} }{\text{Total running time} }$
+\end{itemize}
+% subsubsection Measurement (end)
+
+\subsubsection{First-Come First-Serve (FCFS)}\label{sec:First-Come First-Serve (FCFS)} % (fold)
+The process that asks for the CPU first, gets the CPU first. This is the simplest scheduling algorithm, and can be
+implemented using a queue. New tasks are pushed to the tail, and popped from the head. This algorithm is starvation
+free, everything will eventually complete, and thus everything will eventually be reached, however, the wait times can
+be very long.
+% subsubsection First-Come First-Serve (FCFS) (end)
+
+\subsubsection{Shortest Job First/Next (SJF/SJN)}\label{sec:Shortest Job First/Next (SJF/SJN)} % (fold)
+When the CPU is available, it is assigned to the process that will take the shortest amount of time. This can be proved
+to be optimal for waiting time, in the offline context, which is when the jobs all arrive at time 0, and when we know
+how long each job will take. This has the problems that we need to know in advance the job execution time (we often do
+not), and that this has starvation in the online settings (consider we have a long job in the queue, but just before the
+first short job stops, a new short job arrives, then the long job will never run).
+% subsubsection Shortest Job First/Next (SJF/SJN) (end)
+
+\subsubsection{Shortest Remaining Time First (SRTF)}\label{sec:Shortest Remaining Time First (SRTF)} % (fold)
+Often called Shortest Remaining Time. This is a preemptive variant of SJF. If a new process arrives with a required CPU
+time which is smaller than the remaining time of the current process, current executing process, then preempt it. This
+way, short processes are handled very quickly. However, this has the same problem as SJF, in that job execution times
+are not necessarily known, and it can cause starvation.
+% subsubsection Shortest Remaining Time First (SRTF) (end)
+
+\subsubsection{Priority scheduling}\label{sec:Priority scheduling} % (fold)
+The CPU is allocated the process with the highest priority. A priority is associated with each process, each priority is
+a value in a fixed range of numbers, where we use \textbf{low} numbers to represent \textbf{higher} priorities.
+Processes with the same priority are ordered in FCFS. Note that SJF is a special case of this, where the priority is the
+time required on the CPU. This has the problems of not being starvation free, and is not necessarily able to allow
+preempting.
+
+Priorities can be defined internally, whereupon they uses a measurable quantity. This includes time limits, memory
+requirements, memory consumption, and so on. It may also be defined externally, usually by the user. In this case they
+are usually ranked by importance, consider 2 people paying for time on a cloud service, one of whom is paying for higher
+priority than the other. Priority scheduling has a preemptive version. However, there are major problems, with infinite
+blocking, and starvation. We can solve this through ageing, where we gradually increase the priority of processes that
+wait for a long time.
+% subsubsection Priority scheduling (end)
+
+\subsubsection{Round Robin (RR)}\label{sec:Round Robin (RR)} % (fold)
+A small unit of time, called a quantum, is defined. This is generally in the range of 10-100ms. The ready queue is a
+circular FIFO queue. The CPU goes around the ready queue, and allocates each process the CPU time of up to 1 time
+quantum. When the process uses less than 1 quantum, it voluntarily releases the CPU, and when it is longer, then the
+process is preempted.
+% subsubsection Round Robin (RR) (end)
+
+% subsection Algorithms (end)
+% section CPU scheduling (end)
+
+\section{Parallel systems}\label{sec:Parallel systems} % (fold)
+
+% section Parallel systems (end)
+
+\end{document}
