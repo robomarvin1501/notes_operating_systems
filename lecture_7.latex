@@ -1,0 +1,362 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows, calc}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 7 - Scheduling part 2}
+\author{Gidon Rosalki}
+\date{2025-05-11}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+Be warned, this lecture will involve more mathematics than usual. Likely the most mathematical in the course. Gird thine
+loins, and prepare yourself. \\
+
+\section{Using accounting data}\label{sec:Using accounting data} % (fold)
+We ideally want to carry out, or approximate, SRPT (shortest remaining processing time), but we don't have the
+required information, only a very coarse grained estimation. To solve this, we will hedge will Round Robin, where we let
+every job run, and have insurance against the errors in the estimation. \\
+
+The heavy tail distribution introduced last week has the following properties: \begin{itemize}
+    \item The tail is heavier than any exponential $\left(e^{-kx}\right)$
+    \item $\text{CV} = \displaystyle\frac{\sigma}{\mu}$ (coefficient of variation). Heavy tail usually has $\text{CV} >
+        1$
+    \item $E \left(x - x_0 : x \geq x_0\right)$: The average remaining time for a job that survived $x_0$ seconds. A
+        heavy tail implies that this is monotonously increasing in $x_0$
+\end{itemize}
+
+\subsection{Distribution examples}\label{sub:Distribution examples} % (fold)
+\subsubsection{Dirac}\label{sec:Dirac} % (fold)
+We have a generalised function $\delta$, such that \[
+    \delta \left(x - a\right) = \begin{cases}
+        0, &\text{ if }x \ne a\\
+        \infty, &\text{ if }x = a\\
+
+    \end{cases}
+\]
+This has some interesting properties. Firstly, there is no tail, $E \left[\delta\right] = a$, and $\sigma = 0$.
+Additionally $\text{CV} = 0 < 1$. Finally \[
+    E \left[x - x_0 : x \geq x_0\right] = a - x_0
+\]
+This is decreasing in $x_0$. \\
+However, we know that this doesn't happen in reality.
+% subsubsection Dirac (end)
+
+\subsubsection{Uniform distribution}\label{sec:Uniform distribution} % (fold)
+Here we have the function \[
+    f \left(x\right) = \displaystyle\frac{1}{a} : 0 \leq x \leq a
+\]
+This has no tail, the expectation of $\displaystyle\frac{a}{2}$, the standard deviation of
+$\displaystyle\frac{a}{\sqrt{12} }$, and the CV $\displaystyle\frac{1}{\sqrt{3} } < 1$. Additionally \[
+    E \left[x - x_0 : x \geq x_0\right] = \displaystyle\frac{a - x_0}{2}
+\]
+This is also decreasing in $x_0$
+% subsubsection Uniform distribution (end)
+
+\subsubsection{Normal distribution}\label{sec:Normal distribution} % (fold)
+This has a light tail, and $E \left[x - x_0 : x \geq x_0\right]$ is also decreasing in $x_0$
+% subsubsection Normal distribution (end)
+
+\subsubsection{Exponential distribution}\label{sec:Exponential distribution} % (fold)
+This has the function \[
+    f \left(x\right) = \lambda e^{-\lambda x} : 0 \leq x < \infty
+\]
+Where $\lambda > 0$ is the rate parameter, the number of events per unit of time. This has a "transition" tail, an
+expected value and standard deviation of $\displaystyle\frac{1}{\lambda}$, and a CV of 1. We additionally get that \[
+    E \left[x - x_0 : x \geq x_0\right] = \displaystyle\frac{1}{\lambda}
+\]
+No matter how long you have waited, your expected additional wait time is $\displaystyle\frac{1}{\lambda}$.
+% subsubsection Exponential distribution (end)
+
+\subsubsection{Power law (Pareto) distribution}\label{sec:Power law (pareto) distribution} % (fold)
+\[
+    f \left(x\right) = ax^{-\left(a + 1\right)} : a > 1 \land 1 \leq x < \infty
+\]
+This has a heavy tail, $\text{CV} = \infty > 1$ (for $a \leq 2$), and \[
+    E \left[x - x_0 : x \geq x_0\right] = \displaystyle\frac{x_0}{a - 1}
+\]
+% subsubsection Power law (pareto) distribution (end)
+% subsection Distribution examples (end)
+
+\subsection{Multi level feedback queues}\label{sub:Multi level feedback queues} % (fold)
+These distributions give us that if a job runs for a long time, it will most likely keep running for a long time, so if
+a job is preëmpted at the end of a quantum, then we learn something about it (assuming a heavy tail), in that its
+remaining time expectancy just got \textbf{longer}. We should thus give it a lower priority than new jobs, which are
+shorter on average. \\
+To help us implement, this let us consider multi-level feedback queues: When a job completes a quantum, do \textbf{not}
+return it to the run queue, but rather place it in a separate queue with other long jobs. We then schedule long jobs
+\textbf{only} if the original queue is empty. We can have multiple such queues, that can have different time quanta, and
+different scheduling algorithms. There are some rules for implementing a multi-level feedback queue: \begin{enumerate}
+    \item New jobs enter the highest priority queue
+    \item Always schedule jobs from the highest priority non empty queue (jobs in lower priority queues do not run)
+    \item If a job completes its quantum, then it is demoted to a lower priority queue
+    \item Jobs in the same queue are scheduled with Round Robin.
+\end{enumerate}
+To summarise, they manage to prioritise short jobs (like SRPT), without knowing in advance when additional jobs will
+arrive, or how new jobs will run, by using preëmption, and lightweight accumulated knowledge about jobs. Variants of
+this are still used by all major OSs.
+% subsection Multi level feedback queues (end)
+
+\subsection{Starvation}\label{sub:Starvation} % (fold)
+However, this leaves the problem of new short jobs regularly arriving, thus starving out the longer jobs. A possible
+method to resolve this, we give each queue a relative allocation of CPU time. The higher allocations go to higher
+priority queues (Which contain shorter jobs), and a non zero allocation should go to lower priority queues, that contain
+the longer jobs. \\
+Another possible solution is to use ageing: This has a negative feedback principle: running reduces your priority to run
+more, and thus moves you to a lower priority queue. In addition to this, waiting increases your priority to run, and
+moves you to a higher priority queue. The classic Unix scheduler worked as follows: There were 128 queues for 128
+priority levels. 0 - 49 were for the kernel, and 50 - 127 were for user mode processes. It always scheduled the highest
+priority process (i.e., the lowest priority score), and for the kernel, priority was based on the reason for sleep, for
+example Disk I/O was given 20, Terminal I/O was given 28. This was all as a result of heuristics, there was not
+mathematics underlying these decisions. A simplified overview is as follows: User priority $\approx$ cpu\_usage  + base.
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_7_aging_in_unix}
+    \caption{Ageing in the classic Unix scheduler}
+\end{wrapfigure}
+On each clock tick, about 1/100th of a second, add 1 to the CPU usage of the running process (in the PCB). If a higher
+priority process exists, then switch to it. At the end of a burst (quantum = 10 ticks, or block), then switch to the
+next process of the same priority (RR). Every second (100 clock ticks), divide cpu\_usage of \textbf{all} processes by 2
+(increasing their priority), and recalculate priority.
+
+An alternative view is to view the arrival of constant short jobs bot as a bug, but rather a feature! Short jobs
+arriving all the time implies that the system is overloaded, and that it is impossible to run everything. We need to
+decide what not to run, and sacrificing long jobs makes sense, since they are not interactive, no one is waiting for
+them, and one long job completing is equivalent to many short jobs completing. Alternatively, they will run once the
+load abates (if it does, e.g. at night).
+
+Returning to consider multi-level feedback queues, how does it treat computational vs interactive processes?
+Computational processes get lower priority, and simple interactive jobs (such as editors), will get higher priority, and
+will thus run immediately when ready. However, complex interactive jobs (e.g. 3D games) may get a low priority. Thus,
+modern schedulers try to prioritise, for examples, based off the active window.
+% subsection Starvation (end)
+% section Using accounting data (end)
+
+\section{Performance evaluation}\label{sec:Performance evaluation} % (fold)
+\section{Evaluating a scheduler}\label{sec:Evaluating a scheduler} % (fold)
+We may use queueing models, use queueing theory to solve a stochastic model, and derive average performance metrics.
+This is based on simplifying mathematical assumptions. We may also use simulations, use a program that implements a
+model of a computer system, however the model is a simplification of reality. Finally we have implementation, where we
+put the actual algorithm in a real system for evaluation, under real operating conditions. We will focus, for now, on
+the first option.
+
+Let us suppose a system model, servers with queues. There is a queueing network, queues are shared between multiple
+interconnected servers. Let us analyse the FCFS scheduler. Given \begin{itemize}
+    \item Assumption on the incoming job rate: Memoryless, with a fixed average rate of $\lambda$ (exponential
+        distribution)
+    \item Assumption on the processing time, and order: Memoryless, fixed average rate  $\mu$ (and an unlimited queue),
+        using FCFS
+    \item Goal: Find the average response time (we'll first find the average queue length using Markov chains)
+
+\end{itemize}
+
+A quick note on notation: We will use Kendall's notation. M/M/1: \begin{itemize}
+    \item Arrivals: M = Memoryless
+    \item Processing time: M = Memoryless
+    \item Number of servers: 1
+\end{itemize}
+
+So, let us have an M/M/1 queue, a single server, with arrivals at rate $\lambda$, and service at rate $\mu$. The
+stability constraint is that $\lambda \leq \mu$.
+
+The exponential distribution is not really heavy tail, but it is borderline, and close enough for our purposes. We will
+use it for simplicity, and ease of analysis. Our goal is to find, given $\lambda$ and $\mu$, what will the average
+response time be?
+
+\subsubsection{Little's law}\label{sec:Littl's law} % (fold)
+We know $\lambda$ and $\mu$, and we want to find $\overline{r}$ (the average response time). Little's law is as follows:
+\[
+    \overline{n} = \lambda \cdot \overline{r}
+\]
+Where $\overline{n}$ is the number of processes in the system. However, we need to find $\overline{n}$ as a function of
+$\lambda$ and $\mu$. Consider the following example: A bar gets 6 visitors per hour (so $\lambda = 6$). Each visitor
+spends 3 hours at the bar, (so $\overline{r} = 3$). On average, how many chairs do you need? \[
+    \overline{n} = 6 \cdot 3 = 18
+\]
+
+The system of M/M/1 can be in many different states: \begin{itemize}
+    \item There may be no process at all
+    \item There may be one process, running
+    \item There may be 2 processes, one running, and one in the queue
+    \item there may be 3 processes, one running, and two in the queue
+    \item $\vdots$
+\end{itemize}
+The \textbf{state} is the total number of processes in the system, both running, \textit{and} waiting. The system moves
+from state $i$ to state $i + 1$ at rate $\lambda$. The system moves from state $i + 1$ to $i$ at rate $\mu$. This system
+is called a \textbf{Markov chain}.
+\begin{center}
+    \begin{tikzpicture}[node distance=2cm, state/.style={circle, draw, minimum size=1cm}]
+        \node[state] (q0) {0};
+        \node[state, right of=q0] (q1) {1};
+        \node[state, right of=q1] (q2) {2};
+        \node[state, right of=q2] (q3) {3};
+        \node[state, right of=q3] (dots) {$\dots$};
+
+        \draw   (q0) edge[->, bend left, above] node{$\lambda$} (q1)
+                (q1) edge[->, bend left, above] node{$\lambda$} (q2)
+                (q2) edge[->, bend left, above] node{$\lambda$} (q3)
+                (q3) edge[->, bend left, above] node{$\lambda$} (dots)
+
+                (dots) edge[->, bend left, below] node{$\mu$} (q3)
+                (q3) edge[->, bend left, below] node{$\mu$} (q2)
+                (q2) edge[->, bend left, below] node{$\mu$} (q1)
+                (q1) edge[->, bend left, below] node{$\mu$} (q0)
+
+                ;
+    \end{tikzpicture} \\
+\end{center}
+The states of Markov chains have limiting probabilities: Ergodic (connected, with no periodic cycles). We denote the
+probability to be in state $i$ by $\pi_i$. This can be calculated using balanced flow (if reversible). The flow from
+state $i$ to $i + 1$ is the flow in the opposite direction. \begin{align*}
+    \pi_0 \cdot \lambda = \pi_1 \cdot \mu &\implies \pi_1 = \displaystyle\frac{\lambda}{\mu} \pi_0 \\
+    \pi_1 \cdot \lambda = \pi_2 \cdot \mu &\implies \pi_2 = \displaystyle\frac{\lambda}{\mu} \pi_1  \\
+                                          &= \left(\displaystyle\frac{\lambda}{\mu}\right)^2 \pi_0
+\end{align*}
+% TODO example 48-49
+Let us define $\rho = \left(\displaystyle\frac{\lambda}{\mu}\right)$
+In general, \[
+    \pi_i = \left(\displaystyle\frac{\lambda}{\mu}\right)^i \pi_0 = \rho^i \pi_0
+\]
+The sum total is \[
+    1 = \displaystyle\sum_{i = 0}^{\infty} \pi_i = \pi_0 \displaystyle\sum_{i = 0}^{\infty}\rho^i =
+    \displaystyle\frac{\pi_0}{1 - \rho}
+\]
+Or \[
+    \pi_0 = 1 - \rho
+\]
+So finally: \[
+    \pi_i = \rho^i \left(1 - \rho\right)
+\]
+Let us use the state probabilities to find the number of jobs: \[
+    \overline{n} = \displaystyle\sum_{i = 0}^{\infty} i \cdot \pi_i = \displaystyle\sum_{i = 0}^{\infty} i \left(1 -
+    \rho\right)\rho^i = \displaystyle\frac{\rho}{1 - \rho}
+\]
+Finally, use Little's law to find the average response time: \[
+    \overline{r} = \displaystyle\frac{\overline{n}}{\lambda} = \displaystyle\frac{\rho}{\lambda \left(1 - \rho\right)} =
+    \displaystyle\frac{\frac{1}{\mu}}{1 - \rho}
+\]
+
+The result:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.2]{lecture_7_response_vs_utilisation}
+    \caption{Average response time vs utilisation}
+\end{figure}
+
+The implications of this are that starvation is not binary, due to randomness, wait times are unbounded, and if we want
+a short response time, we have to accept utilisation < 100\%.
+% subsubsection Littl's law (end)
+% section Evaluating a scheduler (end)
+% section Performance evaluation (end)
+
+\section{Open, closed, and combined systems}\label{sec:Open, closed, and combined systems} % (fold)
+In an open system, we have no feedback from performance to jobs, where there is in closed, open has a fluctuating number
+of jobs, where they are constant in closed, and the load in an open system < 100\%, where load = 100\% in closed, open
+has a response time metric, since this is the most important, but in closed we have a throughput metric. An example of
+an open system would be a web server, where for a closed system consider a controller.
+
+In reality, models are often combined, users join, spend some time in the system, and then leave.
+
+In a queueing network, performance is dictated by the bottleneck device. If jobs are compute bound, the CPU is the
+bottleneck, and the disk is mostly idle. If jobs are I/O bound, then the disk is the bottleneck, and the CPU is mostly
+idle. Only the scheduling of the bottleneck device is important.
+% section Open, closed, and combined systems (end)
+
+\section{Other scheduling contexts}\label{sec:Other scheduling contexts} % (fold)
+\subsection{Long term scheduling}\label{sub:Long term scheduling} % (fold)
+Processes need memory space to run, but what if there is not enough for all of them? Then we need to swap out some of
+them, by storing them temporarily on the disk, and returning them alter. We must have the following considerations: Keep
+the interactive jobs, and create a good job mix (i.e., a complementary use of resources, minimising device bottlenecks
+by mixing CPU bound, and I/O bound tasks).
+% subsection Long term scheduling (end)
+
+\subsection{Fair share scheduling}\label{sub:Fair share scheduling} % (fold)
+It is important to note that "fair" does not necessarily mean "equal". Fair is according to allocation. We have a couple
+of methods to achieve this: \begin{itemize}
+    \item Virtual time scheduling. Here we count the time "faster" for low priority processes, which is implemented by a
+        virtual time ("penalty") per quantum
+    \item Lottery scheduling: Give processes lottery tickets for various system resources, such as CPU time, and the
+        number of lottery tickets reflects allocation. A lottery ticket is drawn at random, and the process holding the
+        ticket gets the allocation.
+\end{itemize}
+% subsection Fair share scheduling (end)
+% section Other scheduling contexts (end)
+
+
+
+\end{document}
