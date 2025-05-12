@@ -84,8 +84,8 @@
 \begin{document}
 \maketitle
 \noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
-Be warned, this lecture will involve more mathematics than usual. Likely the most mathematical in the course. Gird thine
-loins, and prepare yourself. \\
+Be warned, this lecture will involve more mathematics than usual. Likely the most mathematical in the course. Gird thy
+loins, and prepare thyself. \\
 
 \section{Using accounting data}\label{sec:Using accounting data} % (fold)
 We ideally want to carry out, or approximate, SRPT (shortest remaining processing time), but we don't have the
@@ -238,7 +238,7 @@ The exponential distribution is not really heavy tail, but it is borderline, and
 use it for simplicity, and ease of analysis. Our goal is to find, given $\lambda$ and $\mu$, what will the average
 response time be?
 
-\subsubsection{Little's law}\label{sec:Littl's law} % (fold)
+\subsection{Little's law}\label{sec:Littl's law} % (fold)
 We know $\lambda$ and $\mu$, and we want to find $\overline{r}$ (the average response time). Little's law is as follows:
 \[
     \overline{n} = \lambda \cdot \overline{r}
@@ -287,7 +287,57 @@ state $i$ to $i + 1$ is the flow in the opposite direction. \begin{align*}
     \pi_1 \cdot \lambda = \pi_2 \cdot \mu &\implies \pi_2 = \displaystyle\frac{\lambda}{\mu} \pi_1  \\
                                           &= \left(\displaystyle\frac{\lambda}{\mu}\right)^2 \pi_0
 \end{align*}
-% TODO example 48-49
+
+
+\subsubsection{Example}\label{sec:Example} % (fold)
+Let $\lambda = 1$ (1 job arrives per minute), and $\mu = 2$ (the CPU can process 2 jobs per minute). Therefore our
+Markov chain looks as follows:
+\begin{center}
+    \begin{tikzpicture}[node distance=2cm, state/.style={circle, draw, minimum size=1cm}]
+        \node[state] (q0) {0};
+        \node[state, right of=q0] (q1) {1};
+        \node[state, right of=q1] (q2) {2};
+        \node[state, right of=q2] (q3) {3};
+        \node[state, right of=q3] (q4) {4};
+        \node[state, right of=q4] (qdots) {$\dots$};
+
+        \draw
+                (q0) edge[->, bend left, above] node{$\lambda = 1$} (q1)
+                (q1) edge[->, bend left, below] node{$\mu = 2$} (q0)
+
+                (q1) edge[->, bend left, above] node{$\lambda = 1$} (q2)
+                (q2) edge[->, bend left, below] node{$\mu = 2$} (q1)
+
+                (q2) edge[->, bend left, above] node{$\lambda = 1$} (q3)
+                (q3) edge[->, bend left, below] node{$\mu = 2$} (q2)
+
+                (q3) edge[->, bend left, above] node{$\lambda = 1$} (q4)
+                (q4) edge[->, bend left, below] node{$\mu = 2$} (q3)
+
+                (q4) edge[->, bend left, above] node{$\lambda = 1$} (qdots)
+                (qdots) edge[->, bend left, below] node{$\mu = 2$} (q4)
+
+                ;
+    \end{tikzpicture} \\
+\end{center}
+Therefore, we get the overall expressions: \begin{align*}
+    \pi_i \cdot \lambda &= \pi_{i + 1} \cdot \mu \\
+    \pi_i &= 2 \cdot \pi_{i + 1}
+\end{align*} \\
+
+and we can thus derive \begin{align*}
+    \pi_0 &= \displaystyle\frac{1}{2} \\
+    \pi_1 &= \displaystyle\frac{1}{4} \\
+    \pi_2 &= \displaystyle\frac{1}{8} \\
+    \pi_3 &= \displaystyle\frac{1}{16} \\
+    \pi_4 &= \displaystyle\frac{1}{32} \\
+\end{align*}
+
+
+% subsubsection Example (end)
+
+
+\subsubsection{M/M/1 state probabilities}\label{sec:M/M/1 state probabilities} % (fold)
 Let us define $\rho = \left(\displaystyle\frac{\lambda}{\mu}\right)$
 In general, \[
     \pi_i = \left(\displaystyle\frac{\lambda}{\mu}\right)^i \pi_0 = \rho^i \pi_0
@@ -320,7 +370,7 @@ The result:
 
 The implications of this are that starvation is not binary, due to randomness, wait times are unbounded, and if we want
 a short response time, we have to accept utilisation < 100\%.
-% subsubsection Littl's law (end)
+% subsubsection M/M/1 state probabilities (end)
 % section Evaluating a scheduler (end)
 % section Performance evaluation (end)
 
