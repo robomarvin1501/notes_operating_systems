@@ -1,0 +1,350 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 7 - Sockets}
+\author{Gidon Rosalki}
+\date{2025-05-14}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Introduction}\label{sec:Introduction} % (fold)
+We are taking a break from purely OS oriented code, and will be discussing sockets, and networking this week. This is a
+subject of how computers communicate between each other, over a network. The internet is a type of such a network.
+% section Introduction (end)
+
+\section{Networking basics - packets}\label{sec:Networking basics - packets} % (fold)
+\subsection{Communication protocols}\label{sub:Communication protocols} % (fold)
+A communication protocol is a system of digital rules for data exchange between computers. Communication systems use
+well defined formats for exchanging messages, consider them languages. A language is a standardised system for
+communication between humans, and so too these protocols for between computers. A protocol defines the syntax,
+semantics, and synchronization of communication. Computer networking protocols implementation is called the protocol
+stack or network stack. \\
+Communication occurs in several layers, but it will mostly remain undiscussed this course. % TODO layers pptx5
+% subsection Communication protocols (end)
+
+\subsection{Packets}\label{sub:Packets} % (fold)
+If computers can only send messages of a fixed size, we have problems, since messages can vary in size. WE also do not
+want to send messages that are too long, since these are more prone to errors, or being lost. Instead we have defined a
+unit of data called a \textbf{packet}, which is carried over a network. Packets have a minimum, and maximum size, and if
+we have a message that is longer than the maximum, we split it into many packets.  \\
+A packet contains: \begin{itemize}
+    \item Header: This contains the source and destination addresses, often the packet identification number, and other
+        protocol data
+    \item Payload / Data: The information we want to send
+    \item Trailer (sometimes): Comes at the end, after the data.
+\end{itemize}
+
+\textbf{Packetisation} is the system for splitting a larger amount of data into many packets. It is responsible for adding
+headers (and trailers) to packets, breaking the message into packets, and sending the packets / receiving incoming
+packets. \\
+Errors can occur, for example the packet can be lost, and the transmission can be corrupted, and then the wrong bytes
+are received. For example, we could send \lstinline[columns=fixed]{001}, and then instead \lstinline[columns=fixed]{000}
+is received. Often, the communication protocol is also responsible for correct transmission. It ensures that data
+arrives, and that data is received in the correct order, since data can arrive in an arbitrary order. If data has
+arrived, it ensures that the data is accurate (this may include error correction, or a request to resend the data). It
+is important to note though, that some protocols do not take responsibility for some / all of these steps.
+% subsection Packets (end)
+
+\subsection{Routing}\label{sub:Routing} % (fold)
+Since not all computers are directly connected one to another, we need routing to pass packets between intermediate
+stations. Another program is responsible for routing (sending to those intermediate stations, and eventually to the
+destination).
+% subsection Routing (end)
+
+\subsection{Protocol stack TCP/IP}\label{sub:Protocol stack TCP/IP} % (fold)
+The sender adds the headers to the packet, and since this is only used for transmission, the receiver drops it. We can
+for example add a header of a checksum for the packet, as an Error Correcting Code (ECC), so if the packet is corrupted
+this can be detected (and potentially fixed depending on the algorithm used. \\
+The 4 layer model protocol stack (TCP/IP) is the model in which communication is performed in the following four layers:
+\begin{itemize}
+    \item Application: The way the application "understands" the data (HTTPS, FTP, DNS, etc.) % TODO 12
+\end{itemize}
+% subsection Protocol stack TCP/IP (end)
+
+
+% section Networking basics - packets (end)
+
+\section{TCP and UDP}\label{sec:TCP and UDP} % (fold)
+\subsection{The transport layer}\label{sub:The transport layer} % (fold)
+The network layer (one layer below the transpiort layer) is responsible for packet transmission from computer, to
+computer. Data is sent, but communication is \textit{unreliable}. % TODO 15
+However, many applications may want to communicate at the same time. How do we know to which application received data
+is intended? By using \textbf{ports}. A port is a unique number, identifying a connection end point. The packet contains
+incoming and outgoing port numbers. This is how the OS know with what application the data is associated. % TODO 17
+% subsection The transport layer (end)
+
+\subsection{UDP - User Datagram Protocol}\label{sub:UDP} % (fold)
+UDP is the simplest transport layer protocol. The header contains the incoming, and outgoing ports, the length of the
+message, and a checksum (a simple integrity method). This is deeply unreliable, packets may be duplicated, lost, and
+arrive out of order. Consider UDP to be shouting into the void. If someone listens, great! You don't know that though.
+Additionally, they don't know if they heard you right.
+% subsection UDP (end)
+
+\subsection{TCP - Transmission Control Protocol}\label{sub:TCP} % (fold)
+This is a reliable stream transport. It is more connection oriented, a "handshake" is mandatory before communication
+begins, where the sender and receiver agree on details. This takes care of lost / duplicated packets, packet ordering,
+long delays, and data buffering.
+% subsection TCP (end)
+\begin{table}[h!]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Property & UDP & TCP \\ \hline
+         Reliable & No & Yes \\ \hline
+         Connection type & Connectionless & Connection oriented \\ \hline
+         Flow control & No & yes \\ \hline
+         Latency & Low & High \\ \hline
+         Applications & VOIP, Games, video, etc. & HTTP, HTTPS, FTP, SMTP, Telnet, SSH \\ \hline
+     \end{tabular}
+     \caption{UDP vs TCP}
+\end{table}
+
+\subsection{TLS - Transport Layer Security}\label{sub:TLS} % (fold)
+None of what was discussed so far was secured. There are however protocols for securing transportation of data. For
+example, TLS. These protocols sit above a transport layer protocol. The TLS packet contains the data of the user (encrypted,
+or authenticated, for example). The whole TLS packet is the data of a TCP packet, and the whole TCP packet is the data
+of a IPv4 packet. TLS requires a handshake, much like TCP.
+% subsection TLS (end)
+
+\subsection{QUIC}\label{sub:QUIC} % (fold)
+We often use both TLS and TCP (for example, the internet), but that requires two handshakes to initiate a conversation
+(and packet overhead). A relatively new protocol named QUIC replaces the combination of TLS+TCP. It relies on UDP (to
+avoid the TCP handshake), but supplies both TLS security, and TCP integrity, with only a single handshake.
+% subsection QUIC (end)
+% section TCP and UDP (end)
+
+
+\section{Sockets}\label{sec:Sockets} % (fold)
+\subsection{Berkeley Sockets API}\label{sub:Berkeley Sockets API} % (fold)
+The sockets API is a set of system calls, which provide convenient communication for processes. A socket is a door /
+gate for communication. A socket is "a host-local application-created OS-controlled interface into which application
+process can both send and receive messages to/from another application process". It follows a client/server paradigm,
+and supports both UDP and TCP. It effectively abstracts away dealing with TCP, and the exact implementations to the OS,
+and provides a simpler method to access the data. \\
+
+\subsubsection{Client/Server model}\label{sec:Client/Server model} % (fold)
+There’s a single server, and multiple clients (consider Moodle, and all the students). The routine is as follows: \begin{itemize}
+    \item A client initiates contact with a server
+    \item The server is "ready" (also known as listening), for such new communications
+    \item When a server is contacted by a client, a separate socket is created, to communicate with a specific client.
+        The client is unaware of this socket, and the server continues to listen for new clients
+\end{itemize}
+% subsubsection Client/Server model (end)
+
+\subsubsection{Client/Server model - TCP}\label{sec:Client/Server model - TCP} % (fold)
+The server creates a socket, binds, and listens. The client creates a socket, and connects to the host IP, on port
+\lstinline[columns=fixed]{x}. The server, which was waiting fro such a connection, accepts. At this point, if this is
+TCP, a handshake is performed. The client sends a request, which the server reads, and sends responses (this section
+loops, until the message is finished). Then, everyone closes their sockets. We read and write to sockets, much like
+files, but the OS handles the fact that these are subtly different.
+% subsubsection Client/Server model - TCP (end)
+
+\subsubsection{Client/Server model - UDP}\label{sec:Client/Server model - UDP} % (fold)
+The server creates a socket, of port \lstinline[columns=fixed]{x}, and the client creates a socket, sends a request to
+the server, which the server (probably) reads, and may then respond (this section loops). The client will read a reply,
+and then the sockets are closed.
+% subsubsection Client/Server model - UDP (end)
+% subsection Berkeley Sockets API (end)
+
+\subsection{Address}\label{sub:Address} % (fold)
+Let us consider the code for implementing this. We need to begin by specifying an address. The address will be from an
+address family (IPv4 or IPv6). We also need any additional data. To do this, we have an address struct:
+\begin{lstlisting}
+struct sockaddr
+{
+    unsigned short  sa_family;
+    char            sa_data[];
+};
+\end{lstlisting}
+\lstinline[columns=fixed]{sa_family} is usually \lstinline[columns=fixed]{AF_INET} or
+\lstinline[columns=fixed]{AF_INET6}, and the \lstinline[columns=fixed]{sa_data} contains relevant data, such as the
+port. Using this address struct is complicated, in what place do we put the port? To make life easier, we have a
+specialised struct for IPv4 (very common) addresses, and for IPv6, we sue \lstinline[columns=fixed]{sockaddr_in6}.
+\begin{lstlisting}
+struct sockaddr_in
+{
+    short               sin_family;
+    unsigned short int  sin_port;
+    struct in_addr      sin_addr;
+    unsigned char       sin_zero[8];
+};
+
+struct in_addr
+{
+    uint32_t            s_addr;
+};
+\end{lstlisting}
+
+A pointer to \lstinline[columns=fixed]{struct sockaddr_in} can (and should be, when used) cast into
+\lstinline[columns=fixed]{struct sockaddr}. The field \lstinline[columns=fixed]{sin_zero} is used for padding, and must
+be set to all 0s, using \lstinline[columns=fixed]{memset}. Additionally, both \lstinline[columns=fixed]{sin_port}, and
+\lstinline[columns=fixed]{sin_addr} must be in \textbf{Network Byte Order}.
+
+\subsubsection{Little/Big endian}\label{sec:Little/Big endian} % (fold)
+These are 2 ways of writing numbers, and the difference is where the most significant bit is located. For big-endian,
+more significant bytes are located in lower memory locations (consider this, starting from the biggest number first). In
+little endian, the most significant bytes are located in higher memory locations (consider this, starting from the
+smallest number first). For example, if we take the number 6, this would be \lstinline[columns=fixed]{110} in
+big-endian, and \lstinline[columns=fixed]{011} in little endian. \\
+Big-endian is the \textbf{only} approach in networking, whereas most computers are little endian (but not all).
+Therefore, we need to convert our host address into networking address order. However, you must be careful to ensure
+that the address and ports are in order before using networking functions to achieve this. \\
+Since there are 2 types that we want to convert, \lstinline[columns=fixed]{short} (2 bytes), and
+\lstinline[columns=fixed]{long} (4 bytes), we have the functions: \begin{itemize}
+    \item \lstinline[columns=fixed]{htons} - "Host to network short"
+    \item \lstinline[columns=fixed]{htonl} - "Host to network long"
+    \item \lstinline[columns=fixed]{ntohs} - "Network to host short"
+    \item \lstinline[columns=fixed]{ntohl} - "Network to host long"
+\end{itemize}
+
+% TODO 35
+% subsubsection Little/Big endian (end)
+
+\subsubsection{DNS}\label{sec:DNS} % (fold)
+We do not know the IPv4 addresses of websites off the top of our heads (and if you do, what is \textit{wrong} with you?
+They change all the time!). To do ths, we instead use the Domain Name Service (DNS). This protocol allows a translation
+between a “human readable” address (for example, google.com) into an IP address (for example, 142.251.209.14). There’s a
+function named getaddrinfo that can run a DNS query and return the result.
+% subsubsection DNS (end)
+% subsection Address (end)
+
+\subsection{Sockets programming (TCP)}\label{sub:Sockets programming (TCP)} % (fold)
+First, we must create a socket to listen for connections (in TCP). This is done using the
+\lstinline[columns=fixed]{socket} system call.
+\begin{lstlisting}
+int socket(int domain, int type, int protocol);
+\end{lstlisting}
+
+The \lstinline[columns=fixed]{domain} parameter determines the communication protocol family. We use
+\lstinline[columns=fixed]{AF_INET} for IPv4 and \lstinline[columns=fixed]{AF_INET6} for IPv6.
+\lstinline[columns=fixed]{type} determines the socket type, for example \lstinline[columns=fixed]{SOCK_STREAM} for TCP,
+and \lstinline[columns=fixed]{SOCK_DGRAM} for UDP. The parameter \lstinline[columns=fixed]{protocol} is almost always 0.
+It is the default protocol for the socket type.
+
+The socket system call returns an integer. A negative number is considered as an error, and a non-negative value is a
+number called “file descriptor”. The file descriptor is an ID given to the user, and it is used to identify the socket
+when we ask the OS for operations. This is analogous to opening a file. \\
+We now have a socket, but it is not yet connected to any port or address. The next step is called binding, and is done
+by the server. To achieve this, we use the bind system call:
+\begin{lstlisting}
+int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+\end{lstlisting}
+which gets the socket file descriptor, the address struct value, and the length of the address struct. It "identifies"
+the socket with an address.
+
+A machine can be a part of multiple networks, these are called interfaces. For example, consider the loopback interface
+(sending data to oneself), ethernet, WLAN, and so on. In each network, it might have multiple IP addresses, but you
+cannot have the same IP on different interfaces. In binding, we supply an address, and a port. This way we can determine
+who can address us, and how (what address and port).
+
+Now we are bound to an address, it is time to wait for requests. The TCP stack can queue incoming connection requests,
+and if we're busy handling a connection, then another incoming request waits until we can deal with it. We have the
+function
+\begin{lstlisting}
+int listen(int sockfd, int backlog);
+\end{lstlisting}
+which gets the socket file descriptor, and the maximum number of allowed clients that will be waiting to be accepted
+(see later).
+
+\begin{lstlisting}
+int
+start_listening (unsigned short portnum)
+{
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY; // No binding to a specific interface, instead listening to ALL
+    addr.sin_port = htons (portnum);
+    memset (addr.sin_zero, 0, sizeof (addr.sin_zero));
+
+    int welcome_fd = socket (AF_INET, SOCK_STREAM, 0);
+    bind (welcome_fd, (struct sockaddr *)&addr, sizeof (addr));
+    listen (welcome_fd, 3);
+    return welcome_fd;
+}
+\end{lstlisting}
+It is of utmost importance to check the return values! \\
+
+Once we have started to listen, we wait for calls to that socket using the \lstinline[columns=fixed]{accept} system
+call. This is analogous to picking up the telephone when it rings. \lstinline[columns=fixed]{accept} returns a new
+socket which is connected to the caller. This allows a conversation between the two, and is transparent to the client.
+The server may open a different thread, to communicate with the client, and keep accepting new requests.
+% subsection Sockets programming (TCP) (end)
+
+% section Sockets (end)
+
+\end{document}
