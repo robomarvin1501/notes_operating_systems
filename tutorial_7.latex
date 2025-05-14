@@ -343,6 +343,89 @@ Once we have started to listen, we wait for calls to that socket using the \lsti
 call. This is analogous to picking up the telephone when it rings. \lstinline[columns=fixed]{accept} returns a new
 socket which is connected to the caller. This allows a conversation between the two, and is transparent to the client.
 The server may open a different thread, to communicate with the client, and keep accepting new requests.
+
+In response, we call
+\begin{lstlisting}
+int accept(int sockfd, struct sockaddr *cli_addr, socklen_t *cli_addrlen);
+\end{lstlisting}
+This gets the socket ID, with which \lstinline[columns=fixed]{listen} was called, and returns a new file descriptor, of
+a socket for communicating with the client. This sets 2 new parameters: \begin{itemize}
+    \item \lstinline[columns=fixed]{cli_addr} - The address of the client
+    \item \lstinline[columns=fixed]{cli_addrlen} - The length of the address struct that was returned
+\end{itemize}
+
+\begin{lstlisting}
+int
+get_connection (int s)
+{
+    int s = start_listening (PORT); /* earlier
+                                     */
+    int t;                          /* socket of connection */
+    if ((t = accept (s, NULL, NULL)) < 0)
+        return -1;
+    return t;
+}
+\end{lstlisting}
+
+So we have now initialised the server, and it awaits a call, but what about the client? The client starts by "having a
+phone" before it calls someone, and we use the socket system call, as before. Now the client connects to the server
+socket. It supplies the socket file descriptor, and the address struct which should be the same as the server’s.
+\begin{lstlisting}
+int connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrlen);
+\end{lstlisting}
+% TODO 49
+
+\subsubsection{Read and write}\label{sec:Read and write} % (fold)
+To read from a file descriptor into a buffer we use \begin{lstlisting}
+ssize_t read(int fd, void *buff, size_t bytes);
+\end{lstlisting}
+which reads \textbf{at most} \lstinline[columns=fixed]{bytes} bytes into the buffer given in
+\lstinline[columns=fixed]{buff}, from \lstinline[columns=fixed]{fd}. It returns the number of bytes actually read, or negative
+values in errors, and blocks until at least 1 byte is read. It is important to note that it does not necessarily read all the bytes!
+You have to loop until you read everything you want. \\
+To write to a file descriptor, given a buffer, we use the following:
+\begin{lstlisting}
+ssize_t write(int fd, const void *buff, size_t bytes);
+\end{lstlisting}
+
+For example:
+\begin{lstlisting}
+int
+read_data (int s, char *buf, int n)
+{
+    int bcount; /* counts bytes read */
+    int br;     /* bytes read this pass */
+    bcount = 0;
+    br = 0;
+    while (bcount < n)
+        { /* loop until full buffer */
+            br = read (s, buf, n - bcount);
+            if (br > 0)
+                {
+                    bcount += br;
+                    buf += br;
+                }
+            if (br < 1)
+                {
+                    return -1;
+                }
+        }
+    return bcount;
+}
+\end{lstlisting}
+
+In actuality, when using sockets, two different system calls are common:
+\begin{lstlisting}
+ssize_t send(int sockfd, const void *buff, size_t len, int flags);
+ssize_t recv(int sockfd, void *buff, size_t len, int flags);
+\end{lstlisting}
+
+\lstinline[columns=fixed]{flags} allow advanced options: For example, non blocking receive, raising a signal if the peer
+closed the connection, and more. They are equivalent to write and read (respectively), if
+\lstinline[columns=fixed]{flags=0}.
+
+
+% subsubsection Read and write (end)
 % subsection Sockets programming (TCP) (end)
 
 % section Sockets (end)
