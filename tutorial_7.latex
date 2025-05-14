@@ -94,7 +94,17 @@ well defined formats for exchanging messages, consider them languages. A languag
 communication between humans, and so too these protocols for between computers. A protocol defines the syntax,
 semantics, and synchronization of communication. Computer networking protocols implementation is called the protocol
 stack or network stack. \\
-Communication occurs in several layers, but it will mostly remain undiscussed this course. % TODO layers pptx5
+Communication occurs in several layers, but it will be mostly not discussed in this course.
+\begin{itemize}
+    \item Physical: Bytes are streamed, physically, in a cable, or over the air
+    \item Routing: Data is transferred from one entity to another, eventually reaching someone who can communicate
+        directly with whom the data is intended to arrive.
+    \item Management: The responsibility that the data does indeed arrive. Provides interaction with the application
+        through a convenient API, and often supplies compression, encryption, and authentication.
+    \item Application: The application understands the bytes, by converting the bytes into data (for example, into
+        ASCII).
+
+\end{itemize}
 % subsection Communication protocols (end)
 
 \subsection{Packets}\label{sub:Packets} % (fold)
@@ -132,7 +142,10 @@ for example add a header of a checksum for the packet, as an Error Correcting Co
 this can be detected (and potentially fixed depending on the algorithm used. \\
 The 4 layer model protocol stack (TCP/IP) is the model in which communication is performed in the following four layers:
 \begin{itemize}
-    \item Application: The way the application "understands" the data (HTTPS, FTP, DNS, etc.) % TODO 12
+    \item Application: The way the application "understands" the data (HTTPS, FTP, DNS, etc.)
+    \item Transport: Makes sure that the communication is done smoothly, over protocols like TCP and UDP.
+    \item Network/internet: The transmission of the data itself, routing, through protocols like IP
+    \item Link/Physical: Actual bytes transfer (WiFi, Ethernet)
 \end{itemize}
 % subsection Protocol stack TCP/IP (end)
 
@@ -141,11 +154,23 @@ The 4 layer model protocol stack (TCP/IP) is the model in which communication is
 
 \section{TCP and UDP}\label{sec:TCP and UDP} % (fold)
 \subsection{The transport layer}\label{sub:The transport layer} % (fold)
-The network layer (one layer below the transpiort layer) is responsible for packet transmission from computer, to
-computer. Data is sent, but communication is \textit{unreliable}. % TODO 15
+The network layer (one layer below the transport layer) is responsible for packet transmission from computer, to
+computer. Data is sent, but communication is \textit{unreliable}. The transport layer is responsible for application-
+to-application transmission of packets. It may (but not always) supply a reliable, end to end communication for
+applications. This is how we can have multiple clients on a single server. The two main protocols on this layer are TCP
+and UDP. \\
 However, many applications may want to communicate at the same time. How do we know to which application received data
 is intended? By using \textbf{ports}. A port is a unique number, identifying a connection end point. The packet contains
-incoming and outgoing port numbers. This is how the OS know with what application the data is associated. % TODO 17
+incoming and outgoing port numbers. This is how the OS know with what application the data is associated. Ports are
+numbers from 1 to 65535. As we mentioned before, protocols of the application layer use the transport layer protocols.
+Here are some conventions: \begin{itemize}
+    \item FTP: 20 and 21
+    \item SSH: 22
+    \item SMTP: 25
+    \item HTTP: 80
+    \item HTTPS: 443
+    \item DNS: 53
+\end{itemize}
 % subsection The transport layer (end)
 
 \subsection{UDP - User Datagram Protocol}\label{sub:UDP} % (fold)
@@ -272,7 +297,10 @@ Since there are 2 types that we want to convert, \lstinline[columns=fixed]{short
     \item \lstinline[columns=fixed]{ntohl} - "Network to host long"
 \end{itemize}
 
-% TODO 35
+IPv4 addresses should be converted from the “human friendly” notation, into bytes. We have the function
+\lstinline[columns=fixed]{inte_aton} for this purpose. \textbf{WARNING}: This function returns a 0 for failure, and
+\textbf{not} success.
+
 % subsubsection Little/Big endian (end)
 
 \subsubsection{DNS}\label{sec:DNS} % (fold)
@@ -373,7 +401,10 @@ socket. It supplies the socket file descriptor, and the address struct which sho
 \begin{lstlisting}
 int connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrlen);
 \end{lstlisting}
-% TODO 49
+The connection is now established! After the client calls \lstinline[columns=fixed]{connect}, the server accepts the
+connection and creates a new socket for communication between the two. Then, the \lstinline[columns=fixed]{read} and
+\lstinline[columns=fixed]{write} system calls are used to write and read data, just like reading and
+writing from files.
 
 \subsubsection{Read and write}\label{sec:Read and write} % (fold)
 To read from a file descriptor into a buffer we use \begin{lstlisting}
