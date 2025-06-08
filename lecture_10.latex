@@ -151,15 +151,88 @@ bit CPU? \\
 Here we have $2^{64}$ bytes of logical address space (though many CPUs limit this to $2^{48}$ bytes). The page size is
 still $2^{12}$ bytes, and an entry in the page table is $2^3$ bytes. For a $2^{48}$ address space, the page table itself
 is $2^{27}$ page. If we suppose that physical memory is 8GB $= 2^{33}$ bytes, then we need $2^{21}$ frames. This table
-does not fit into the RAM. At least $2^{27} - 2^{21}$ pages of the page table are completely invalid.
+does not fit into the RAM. At least $2^{27} - 2^{21}$ pages of the page table are completely invalid. \\
+
+We can resolve this using Hierarchical Page Tables, where we break up the logical address space into multiple page
+tables. A simple technique is a two level page table. We can also use Hashed Page Tables, and Inverted Page Tables.
+
+\subsection{Hierarchical page table - structure}\label{sub:Hierarchical page table - structure} % (fold)
+Let us consider a hierarchy 2 levels deep. Here, our logical address contains the page in the top level, the page in the
+second level, and the offset. The top level page points to a page in the top level PT, which in turn points to a frame
+in the second layer, where we have selected a PT by the page in the second level, contained within the logical address.
+From here, we construct the physical address as normal. \\
+This way, instead of holding 1 table, with 1 million entries, we hold 1025 tables, with 1000 entries.
+
+Let us consider a numerical example, with a 32 bit architecture. Let us consider accessing page 5200, with offset $d$.
+Well, in a hierarchy, let us suppose that page 5200 is held in frame 1000. The TLPT is held in frame 17, and the second
+level table 5 is held in frame 700. We go to frame 17, and read the 5th entry, whose value is 700. We then go to frame
+700, and read the 80th entry, whose value is 10000. We then read the address 1000, with offset $d$.
+
+In a 32 bit (x86) architecture, there tends to be 2 levels, the paging directory, and paging table, where we have two
+indices of 10 bits, and an offset of 12 ($2 \cdot 10 + 12 = 32$). \\
+In a 64 bit architecture, (x64), There can be 4 levels, for $2^{48}$ physical bytes, 4 indices of 9 bits, and an offset
+of 12 ($4 \cdot 9 + 12 = 48$). There can also be 5 levels, for $2^{57}$ physical bytes, 5 indices of 9 bits, and an
+offset of 12.
+
+So what is this good for? Well, considering 2 levels, not all the 2nd level page tables must be occupied. Therefore,
+they are created on demand, and the total page table size reflects actual page use, and not the theoretical address
+space.
+
+\subsubsection{Page creation}\label{sec:Page creation} % (fold)
+We begin with an all zero entry, where it is completely unmapped. There are 2 ways that pages are created: \begin{itemize}
+    \item Explicit creation e.g. a heap request: A process invokes \lstinline[columns=fixed]{mmap()} (such as by calling
+        \lstinline[columns=fixed]{malloc}), and the kernel assigns new page(s) for it, and adds entries to the page
+        table(s)
+    \item Implicit creation e.g. stack growth: The thread stack is not allocated its maximum size (8MB). When the stack
+        grows to exceed its current maximum size, a page fault is called, and the kernel identifies the stack region,
+        and assigns a new page for it, adding entries to the page table(s).
+\end{itemize}
+
+We will now note, that the MMU has more work to do, and harder work, needing to go between multiple different levels:
+Each virtual memory access translates into 3 (in 32 bit architecture) physical memory accesses. We also now have 2 page
+fault reasons: \begin{itemize}
+    \item A non terminal page directory entry (e.g. entry in the TLPT) is not present / invalid
+    \item Content page is not present (as before)
+\end{itemize}
+
+Most of the second level page tables are all invalid, so there is no need to store them \textbf{anywhere} (no, not even
+on the disk). When a page fault to such a table occurs, then the OS may decide to honour it, and create an all-zero
+frame for that page table, and store the entry needed + prepare a frame. \\
+Fro a page table entry with a valid bit of 1, then the page is in memory. If the valid bit is 0 + some internal flags,
+then the page is swapped (on disk), and can be loaded with data from the swap table. If the page table entry is all 0s,
+then the page does not exist (no mapping).
+% subsubsection Page creation (end)
+
+\subsubsection{NULL pointer}\label{sec:NULL pointer} % (fold)
+\textbf{IGNORE THIS SECTION FOR THE EXAM, IT IS NOT RELEVANT TO THOSE QUESTIONS} \\
+What happens in runtime when we run \lstinline[columns=fixed]{*ptr = 123;}, if \lstinline[columns=fixed]{ptr = NULL}?
+How is this exception implemented? We don't want the compiler injecting code that checks every single pointer for being
+NULL, for every time we use a pointer, this would have a ridiculously high overhead. There is a very easy solution to
+this. We do not map page 0, and we "waste" 4KB (best 4KB ever wasted), and map NULL pointers to that page. Therefore, we
+get a hardware exception should we try and access a NULL pointer. \\
+
+% subsubsection NULL pointer (end)
+% subsection Hierarchical page table - structure (end)
 % section Hierarchical page tables (end)
 
 \section{Other page tables}\label{sec:Other page tables} % (fold)
+\subsection{Hashed page tables}\label{sub:Hashed page tables} % (fold)
+Here we refer to pages as a hash, having passed them through a hashing function. It follows the following diagram:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.2]{lecture_10_hashed_page_tables}
+    \caption{Hashed page tables}
+\end{figure}
+% subsection Hashed page tables (end)
 
+\subsection{Inverted page tables}\label{sub:Inverted page tables} % (fold)
+These tend to be used when we have a very small amount of memory:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.2]{lecture_10_inverted_page_tables}
+    \caption{Hashed page tables}
+\end{figure}
+% subsection Inverted page tables (end)
 % section Other page tables (end)
-
-\section{A note about memory security}\label{sec:A note about memory security} % (fold)
-
-% section A note about memory security (end)
 
 \end{document}
