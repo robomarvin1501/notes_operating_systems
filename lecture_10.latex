@@ -1,0 +1,165 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 10 - Paging and Locality}
+\author{Gidon Rosalki}
+\date{2025-06-08}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Recap}\label{sec:Recap} % (fold)
+\subsection{Virtual memory}\label{sub:Virtual memory} % (fold)
+The idea is to disconnect from the limitation of our physical budget, and make it appear as though we have all the
+memory that we want. This can be implemented using demand paging, where we bring pages to memory when we need them, and
+store them on the disk when we do not. We store their addresses in the page table, and when we want to access memory, we
+request from the virtual memory to the page table, and if it's in the physical memory, it will be read from there, and
+if not, it will first be pulled from the disk. If necessary, it will remove a page in memory to make space for this new
+page. There are many methods to choose this page to remove, discussed previously. \\
+The performance is found as follows: Let us call $p$ the probability of a page fault, and thus the effective access time
+is given as: \[
+    \text{effective access time}  = p \cdot \text{page fault time}  + \text{memory access time}
+\]
+Remember, we add disk load time to the memory access time. The slowdown is as follows: \[
+    \text{slowdown}  = \displaystyle\frac{\text{Effective access time} }{\text{memory access time} }
+\]
+These have typical numebrs (currently, in 2025) of a page fault time being rough;y $40\mu s$ (on an SSD), and access
+time of $100ns$. For $p = 0.01$, we generally get a slowdown of 5, and when $p = 0.0001$, we get a slowdown of around
+1.04. Performance depends on locality, we should ensure that costly disk operations are rare, and amortise them across
+many memory accesses.
+% subsection Virtual memory (end)
+
+
+% section Recap (end)
+
+\section{Workloads and Locality management}\label{sec:Workloads and Locality management} % (fold)
+\subsection{Reminder, principle of locality}\label{sec:Reminder, principle of locality} % (fold)
+Temporal locality: If we accessed a certain address, the chances are high to access it again shortly. \\
+Spatial locality: If we accessed a certain address, the chances are high to access its neighbours.
+% subsection Reminder, principle of locality (end)
+
+Temporal locality actually reflects two separate phenomena. Firstly, when we access memory in a clustered manner, such
+as in the following order: AAAAABBBBBCCCCCDDDDD. \\
+It also reflects skewed popularity: BABBBBCBBBBBABBBBBBDBCB \\
+
+\subsection{Measuring locality}\label{sub:Measuring locality} % (fold)
+We are faced with two main questions to measure locality:
+How do we know that locality really exists? How can we characterise the degree of locality given a certaina ddress
+stream? Measure the stack distance: \begin{enumerate}
+    \item Scan the address stream \begin{enumerate}
+        \item Search for each address on the stack. If it is found, then note its depth, and extract it
+        \item Push the address to the top of the stack
+        \end{enumerate}
+    \item Output the distribution of depths at which addresses were found
+\end{enumerate}
+This is the distribution of distances between successive accesses to the same address. Consider the following example:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.2]{lecture_10_locality_measurement_example}
+    \caption{Locality measurement example}
+\end{figure}
+
+The stack distance performance is all we need to evaluate LRU performance. Let us assume a memory of size $k$. The top
+$k$ items in the stack are the $k$ most recently used items, and so they are the ones retained by LRU. So \begin{align*}
+    p &= \text{Probability of a page fault} \\
+      &= \text{Probability of being in location } >k \text{ in the stack}
+\end{align*}
+% subsection Measuring locality (end)
+% section Workloads and Locality management (end)
+
+\section{Thrashing}\label{sec:Thrashing} % (fold)
+Let us consider a definition: \begin{itemize}
+    \item \textbf{CPU Usage}: The fraction of time the CPU is executing instructions
+\end{itemize}
+So we see that it follows naturally that multiprogramming increases CPU Usage. However, it also follows that as the
+degree of multiprogramming increases, the CPU usage increases, until a certain point, and then it falls off sharply to
+0. This area is called \textbf{thrashing}: The system is so busy swapping pages in and out, that no process makes any
+progress. \\
+
+Why does paging work? Due to the locality (of reference) model, that processes migrate from one locality to another, and
+that single process localities may overlap. So why does thrashing occur? When the size of the locality is greater than
+the total memory size (i.e., the combined working sets of all processes exceed the total memory capacity). The solution
+is to limit the degree of multiprogramming, we suspend processes when we exceed the degree of multiprogramming which we
+have defined as the limit. \\
+
+We will resolve this by extending our process scheduler discussed before as follows:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.2]{lecture_10_process_states}
+    \caption{New scheduling}
+\end{figure}
+% section Thrashing (end)
+
+\section{Hierarchical page tables}\label{sec:Hierarchical page tables} % (fold)
+In 32 bit CPUs, if page size is 4KB, then each process has $2^{20}$ pages. If each page entry is 4B, then the page table
+itself requires 1000 pages, since page table size reflects the size of \textbf{logical} memory. So what happens in a 64
+bit CPU? \\
+Here we have $2^{64}$ bytes of logical address space (though many CPUs limit this to $2^{48}$ bytes). The page size is
+still $2^{12}$ bytes, and an entry in the page table is $2^3$ bytes. For a $2^{48}$ address space, the page table itself
+is $2^{27}$ page. If we suppose that physical memory is 8GB $= 2^{33}$ bytes, then we need $2^{21}$ frames. This table
+does not fit into the RAM. At least $2^{27} - 2^{21}$ pages of the page table are completely invalid.
+% section Hierarchical page tables (end)
+
+\section{Other page tables}\label{sec:Other page tables} % (fold)
+
+% section Other page tables (end)
+
+\section{A note about memory security}\label{sec:A note about memory security} % (fold)
+
+% section A note about memory security (end)
+
+\end{document}
