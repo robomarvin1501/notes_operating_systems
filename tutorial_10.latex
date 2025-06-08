@@ -101,7 +101,7 @@ decreases the memory needed to store each page table, but increases time needed 
 occurs. It also doesn't map virtual addresses to non-existent physical addresses.
 \begin{figure}[H]
     \center
-    \includegraphics[scale=0.3]{tutorial_10_inverted_page_table_architecture}
+    \includegraphics[scale=0.2]{tutorial_10_inverted_page_table_architecture}
     \caption{Inverted page table architecture}
 \end{figure}
 
@@ -123,23 +123,24 @@ recently used mappings from the operating system's page table. This cache is cal
 (TLBs) which is an associative cache.
 % subsection Limitations of page tables (end)
 
+\pagebreak
 \subsection{TLB}\label{sub:TLB} % (fold)
 The TLB usually contains 64 entries, and some TLBs store \textbf{address-space identifiers} (ASIDs) in each TLB entry,
 which uniquely identify each process to provide address-space protection for that process.
 \begin{figure}[H]
     \center
-    \includegraphics[scale=0.3]{tutorial_10_paging_with_tlb}
+    \includegraphics[scale=0.2]{tutorial_10_paging_with_tlb}
     \caption{Paging hardware with TLB}
 \end{figure}
 For more detail on TLBs, please see my notes in computer architecture (lectures 8 and 9).
 \begin{figure}[H]
     \center
-    \includegraphics[scale=0.3]{tutorial_10_address_translation}
+    \includegraphics[scale=0.2]{tutorial_10_address_translation}
     \caption{Address translation}
 \end{figure}
 \begin{figure}[H]
     \center
-    \includegraphics[scale=0.3]{tutorial_10_TLB}
+    \includegraphics[scale=0.2]{tutorial_10_TLB}
     \caption{TLB}
 \end{figure}
 % subsection TLB (end)
@@ -225,15 +226,13 @@ I'm not replicating the question here (it was written in Hebrew), however, here 
         So we need $2^{24}$ rows, and the size of each row is 8B, so we need overall: \[
             2^{24} \cdot 2^3 = 2^{27}B
         \]
-    \item \begin{align*}
-            \text{Main memory} &= 64GB = 2^{36}B \\
-            \text{Page size} &= 4KB = 2^{12}B \\
-            \text{Remaining bits} &= 36 - 12 = 24 \\
-            \text{We have 512 rows per page, which takes 9 bits, so} &= 24 - 9 = 15 \\
-            \text{To index these 9 bits of level 1, we need 9 bits of level 2} &= 15 - 9 = 6 \\
-            \text{We theoretically need 9 bits here to index level 2, but we only have 6, which limits the size of level
-        2 to be indexed by these 6 bits of level 3} &= 6 - 6 = 9
-    \end{align*}
+    \item Main memory = 64GB = $2^{36}$B \\
+        Page size = 4KB = $2^{12}$B \\
+        Remaining bits = 36 - 12 = 24 \\
+        We have 512 rows per page, which takes 9 bits, so = 24 - 9 = 15 \\
+        To index these 9 bits of level 1, we need 9 bits of level 2 = 15 - 9 = 6 \\
+        We theoretically need 9 bits here to index level 2, but we only have 6, which limits the size of level
+        2 to be indexed by these 6 bits of level 3 = 6 - 6 = 9 \\
     Therefore, we have 3 levels in the table, as a minimum.
 \end{enumerate}
 % subsection Moed B 2024 (end)
