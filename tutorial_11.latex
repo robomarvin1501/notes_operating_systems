@@ -1,0 +1,232 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 11 - Page replacement algorithms}
+\author{Gidon Rosalki}
+\date{2025-06-11}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Replacement algorithms}\label{sec:Replacement algorithms} % (fold)
+We have a limited amount of RAM, so we need a clever way to replace pages when we have run out. A \textbf{page fault} is
+when a page is located on the disk, and not in the RAM, so we need to load it from the disk to the RAM. This takes time,
+so we want to lower the \textbf{page miss rate}.
+
+Typically, all frames are filled with pages (since otherwise we are wasting hardware). So, we need to know which pages
+to evict when we need to load a new page. When there is a page miss, we need to bring a new page into some frame, and
+therefore we need to evict a page from a frame. This evicted page/frame is called the \textbf{victim}.
+
+So, to choose a victim, we could just choose at random, but we would need to be careful to choose a page that is not
+used often, since otherwise it'll be brought back soon. We should also pick a data page, rather than part of the page
+table, since removing part of the page table, means we'll need to load it back as soon as we use one of the frames to
+which it points. This tutorial will ignore the implementation (Hierarchical, etc.), and focus on replacing actual pages,
+not the page tables.
+
+\subsection{Optimal page replacement}\label{sub:Optimal page replacement} % (fold)
+Often called Bélády’s Optimal Page Replacement Policy. The basic idea is that we want to replace the page that will not
+be used for the longest time, thus giving us the lowest possible fault rate. This is, however, impossible to implement,
+since it requires knowing the future, but since it is optimal, it provides a good measure for the other techniques.
+
+Consider the following reference string: \[
+    0, 2, 1, 6, 4, 0, 1, 0, 3, 1, 2, 1
+\]
+Where we can store 4 at once in the RAM, so our RAM will run as follows: \begin{gather*}
+    \left[0, 2, 1, 6\right] \stackrel{4}{\implies} \left[0, 2, 1, 4\right] \stackrel{3}{\implies} \left[3, 2, 1, 4\right]
+\end{gather*}
+
+So the fault rate is $\displaystyle\frac{6}{12} = 0.5$ (since we need to first fill the memory, and then make the
+replacements shown above). With the above reference string, this is the best we can hope to do.
+% subsection Optimal page replacement (end)
+
+\subsection{FIFO}\label{sub:FIFO} % (fold)
+The first piece of memory to be inserted, is the first to be removed. With the same reference string, the memory will
+thus look as follows: \begin{gather*}
+    \left[0, 2, 1, 6\right] \stackrel{4}{\implies} \left[4, 2, 1, 6\right] \stackrel{0}{\implies} \left[4, 0, 1,
+    6\right] \stackrel{3}{\implies} \left[4, 0, 3, 6\right] \stackrel{1}{\implies} \left[4, 0, 3, 1\right]
+    \stackrel{2}{\implies} \left[2, 0, 3, 1\right]
+\end{gather*}
+This causes a fault rate of $\displaystyle\frac{9}{12} = 0.75$. This is a poor replacement policy, since it does not
+consider how much / how recently pages were used. It simply evicts the oldest page in the RAM, which can easily be a
+frequently used variable, which should be around for a long time.
+% subsection FIFO (end)
+
+\subsection{Second chance FIFO (clock)}\label{sub:Second chance FIFO (clock)} % (fold)
+Each page has a reference bit $R$. When a page is accessed, we set $R = 1$. From here, it works like FIFO, but with a
+second chance. If the page to be replaced has $R = 1$, then we set $R = 0$, and leave the page in memory, moving it to
+the end of the queue, and continue onwards. If $R = 0$, we remove it from memory.
+% subsection Second chance FIFO (clock) (end)
+
+\subsection{Least Recently Used (LRU)}\label{sub:Least Recently Used (LRU)} % (fold)
+The basic idea is to replace the page that has not been accessed for the longest time. This is the optimal policy, but
+looking backwards in time, rather than forwards, since empirical data implies that programs tend to follow similar
+behaviour. \begin{gather*}
+    \left[0, 2, 1, 6\right] \stackrel{4}{\implies} \left[4, 2, 1, 6\right] \stackrel{0}{\implies} \left[4, 0, 1,
+    6\right] \stackrel{3}{\implies} \left[4, 0, 1, 3\right] \stackrel{2}{\implies} \left[2, 0, 1, 3\right]
+\end{gather*}
+So the fault rate is $\displaystyle\frac{8}{12} = 0.67$.
+
+This has the significant problem of needing to keep track of the last page access, which requires special hardware
+support. There are two major solutions: \begin{enumerate}
+    \item Counters: A hardware clock "ticks" on every memory reference, and the page referenced is marked with this
+        time. The page with the smallest time value is then replaced.
+    \item Stacks: We keep a stack of references, and on every reference to a page, move it to the top of the stack, and
+        the page at the bottom of the stack is the next one to be replaced.
+\end{enumerate}
+However, as we can see, this has the problem of needing special hardware, and being computationally expensive.
+Especially since memory references are very common, and it is impractical to implement these every access. As a result,
+LRU is not frequently used, but is similar to other algorithms: \begin{itemize}
+    \item Pseudo-LRU - approximates LRU
+    \item NRU - looks at the usage in the previous time step only
+    \item Other variants and hybrids not mentioned here
+\end{itemize}
+% subsection Least Recently Used (LRU) (end)
+
+\subsection{Summary}\label{sub:Summary} % (fold)
+Our physical memory is bounded, so we need to evict pages so we can load new ones. In the ideal case, we evict the pages
+that won't be used for the longest time, but since we cannot know the future, we must use heuristics. Usually, we simply
+rely on temporal and spatial locality, but remember, it is just a heuristic, and it has many real world failure cases.
+% subsection Summary (end)
+% section Replacement algorithms (end)
+
+\section{Exam questions}\label{sec:Exam questions} % (fold)
+\subsection{2024 Moed A}\label{sub:2024 Moed A} % (fold)
+% TODO the question is not in the provided, but can be extracted in the recording
+\textit{ Sol. }Examine a 5 to 5 count (ignoring the last 5). This has 6 accesses without replacing a page, and 2 with:
+\[
+    \displaystyle\frac{6 \cdot 50 \cdot 10^{-9} + 2 \cdot 40 \cdot 10^{-6}}{8 \cdot 50 \cdot 10^{-9}} = 200.75
+\]
+
+Note, that the question did not clarify whether or not we can ignore code being in the RAM, and this needs to be
+clarified. Here it was fine to assume that there was no need.
+% subsection 2024 Moed A (end)
+
+\subsection{2024 Moed B}\label{sub:2024 Moed B} % (fold)
+\textit{ Sol. }If you run if for just 10, you get 1 in 5 page faults, but if you run it for 20, then you get 5 in 20, or
+1 in 4.
+% subsection 2024 Moed B (end)
+
+\subsection{2017 (or something)}\label{sub:2017 (or something)} % (fold)
+Here is a piece of code, that empties an array of integers (every integer in this case is made up of 4 bytes).
+\begin{lstlisting}
+for (int i = 0; i < 2^29; i++)
+{
+    numbers[i] = 0;
+}
+\end{lstlisting}
+
+The following assumptions are true: \begin{itemize}
+    \item The computer has a physical memory of size $2^{32}$ bytes, split into pages of $2^{12}$ bytes. Note that every
+        page can hold $2^{10}$ integers.
+    \item The array variables are stored continuously in each page, and start at the beginning of the first page.
+    \item All the code can fit into a single page
+    \item We use demand paging to swap out pages, and \lstinline[columns=fixed]{i} is located in the register.
+    \item At the beginning, the memory only contains the page table, which always remains in memory (ignore page faults
+        in the page table)
+\end{itemize}
+
+\subsubsection{Question A}\label{sec:Question A} % (fold)
+Assume that we use LRU to replace pages. How many page faults will there be while running the code, if we are able to
+access $2^{12}$ pages in memory (not including the page tables)? Explain. \\
+\textit{ Sol. } The numbers array is of size $2^{29}$ integer variables, which is $\displaystyle\frac{2^{29}}{2^{10}} =
+2^{19}$ pages. At the beginning, none of these pages are in memory, and must be loaded there. We also need to bring the
+code page into the memory. Every page will cause a page fault, and therefore the number of page faults will be \[
+    2^{19} + 1
+\]
+LRU will never replace the code page, since we use it all the time, and will simply replace the oldest page of the
+contents of numbers, since we never go back to a previous part of the array, simply continue on to the next one.
+% subsubsection Question A (end)
+
+\subsubsection{Question B}\label{sec:Question B} % (fold)
+We will now assume that we are using Second Chance FIFO. How many page faults will there be if we are able to access
+$2^{12}$ pages in memory (not including the page tables)? Explain. \\
+\textit{ Sol. }Note, the provided solution in the presentation is wrong for second chance FIFO, and is instead just
+FIFO. It will be provided below. \\
+We begin by placing the code in the first page, and then filling up the remaining pages with $2^{12} - 1$ pages of the
+array. We then need to load the next page of the array, and go over all the memory, setting the reference bits to 0.
+Following this, we remove the first page (the code page) from the memory, and load in the next page of the array into
+there. We then need to reload the code page, and it therefore goes into the second page of memory. From here, we replace
+all the remaining pages in memory, until we have replaced the entire contents of the memory once, and we now have no
+remaining pages where the reference bit is 0, so we go over all the pages, and set their reference bits to 0 once more.
+We then remove the first page from memory (a data page), and replace it with the new page, and access it from the code,
+thus setting the code page's reference bit back to 1. Therefore, the next page to be removed is the third page, which
+had a reference bit of 0. We will therefore never again replace the code page, since the first page in memory is an
+array page, so therefore our total number of page faults is \[
+    2^{19} + 2
+\]
+Where we had $2^{19}$ for the array, and 2 for the code, since we loaded it twice.
+% subsubsection Question B (end)
+
+
+\subsubsection{Question B - wrong}\label{sec:Question B - wrong} % (fold)
+This is the solution provided in the tutorial. All the page faults of question A will occur here as well. Beyond this,
+after iteration $2^{12} - 1$, the memory will be filled, with one code page, and $2^{12} - 1$ data pages. Since we have
+not tried to replace any pages yet, they all have a reference bit of 1. Therefore, the algorithm will go and set the
+reference bit to 0, for every page. Following this, it will remove the first page, i.e. the code page. Since we need to
+use the code, this will cause another page fault, for inserting the code again. This will occur $2^{12} - 1$ times, and
+therefore in total we will add \[
+    \left\lceil \displaystyle\frac{2^{19}}{2^{12} - 1} \right\rceil = 2^7
+\]
+page faults, resulting in a total of $2^{19} + 2^7$ page faults.
+% subsubsection Question B - wrong (end)
+
+% subsection 2017 (or something) (end)
+
+
+% section Exam questions (end)
+
+\end{document}
