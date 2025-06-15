@@ -1,0 +1,282 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 11 - Virtualisation}
+\author{Gidon Rosalki}
+\date{2025-06-15}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Introduction}\label{sec:Introduction} % (fold)
+The idea is to decouple the software form the hardware. It is one of the most important advances in computer systems in
+the last 25 years. For organisations, it allows server consolidation, and reduces hardware costs (in cooling,
+electricity, maintenance, etc.). For users, it allows us to run more than one OS on one machine, and use the best one
+for each task. This is the basis for cloud computing.
+
+In lecture 1, we discussed virtualisation, and state that the OS virtualises the hardware decoupling from physical
+limitations, and supporting the illusion that there are more resources available, where each app thinks that it has the
+machine for itself. This is implemented by introducing a level of indirection, by juggling resources among
+applications, but needs hardware support.
+
+\subsection{Technical definition}\label{sub:Technical definition} % (fold)
+Virtualisation is \begin{itemize}
+    \item decoupling from physical limitations - what you get does not exist in reality
+    \item using a level of indirection - How we hide the limited reality
+    \item providing the same resources - % TODO 4
+\end{itemize}
+% subsection Technical definition (end)
+
+\subsection{Virtual machines}\label{sub:Virtual machines} % (fold)
+
+
+\subsubsection{Processes as VMs}\label{sub:Processes as VMs} % (fold)
+A process is a virtual machine \textbf{as applications see it}. The CPU, but only non privileged instructions. Virtual
+memory, as an abstraction of physical RAM, and also new abstractions supported by the OS, eg a file system % TODO 5
+% subsection Processes as VMs (end)
+
+\subsubsection{Real virtual machines}\label{sec:Real virtual machines} % (fold)
+Here we virtualise the complete hardware \textbf{as the operating system sees it}. % TODO 6
+
+These have the virtualisation layer. This is the \textbf{hypervisor}, or \textbf{virtual machine monitor}. It adds extra
+levels of indirection, decoupling the hardware, and the OS. IT also has multiplexing for the actual hardware, with
+strong isolation between those using it, and it manages physical resources % TODO 8
+
+Let us consider some examples of virtualisation with multiplexing. The virtual memory, supports multiple address spaces
+on a single, smaller physical memory, each accessed with byte addressing. There are also disk partitions, which make a
+single disk look like multiple smaller disks, each providing independent block storage. Virtual machines are for server
+consolidation, and will be discussed further later.
+
+We can also virtualise with aggregation. Here we create a virtual device using multiple physical devices. For example
+RAID, which is an array of disks, with replication. Data is replicated internally to improve reliability, while the
+interface stays conventional block storage, any file system stored in traditional storage can be stored in RAID instead.
+% subsubsection Real virtual machines (end)
+
+\subsubsection{Some history}\label{sec:Some history} % (fold)
+In the 1960s/70s there was virtualisation on mainframes, since they had single user OSs, and VMs allowed multiple users.
+In the 80s/90s there was a shift to personal machines, with the development of unvirtualisable hardware, eg read only
+unprivileged access to privileged data, and instructions that silently behave differently in privileged and unprivileged
+modes. Finally, in the 2000s, there was a "rediscovery of the benefits of virtualisation", which has extensive use in
+cloud infrastructure, with new hardware support.
+
+% subsubsection Some history (end)
+% subsection Virtual machines (end)
+% section Introduction (end)
+
+\section{Virtualisation benefits}\label{sec:Virtualisation benefits} % (fold)
+Why should we bother? Well, it allows OS diversity, where we may run many different OSs on the same machine, and server
+consolidation supports flexibility and efficiency in server farms. The security is also an important factor, the
+isolation of VMs, and monitoring system behaviour, for example for intrusion detection. This security is far greater
+than can be granted on a standard machine. Additionally, the availability is big, VMs can run anywhere, and benefit from
+live migration. The cloud benefits are also big, where the cloud is infrastructure as a service. We rent VMs from cloud
+providers, strongly isolated from other VMs running on the same physical server, thus avoiding the expense of in house
+infrastructure, and maintenance personnel.
+
+\subsection{Consolidation}\label{sub:consolidation} % (fold)
+
+It also grants us server consolidation, servers often run a single major application or service. This provides strong
+isolation between services and instances, sometimes including performance isolation, but is an inefficient and
+inflexible use of hardware and energy, where some servers will be overloaded, and others idle. Virtualisation resolves
+this by allowing us to consolidate many servers onto fewer machines when the workload is low, reducing costs, and as
+demand for a particular service increases, we can spread it over more hardware in real time.
+% subsection consolidation (end)
+
+\subsection{Legacy}\label{sub:Legacy} % (fold)
+There are also other uses, such as support for legacy applications. We can emulate an old OS in a VM in order to run
+them. It is also helpful in low level software development, if software crashes it might crash the VM, but not the whole
+system. Additionally, the security from isolation allows things like malware analysis, in a secured environment.
+% subsection Legacy (end)
+
+\subsection{Encapsulation}\label{sub:Encapsulation} % (fold)
+Here we have the entire VM in a file, including the OS, application, and data, along with the memory and device state.
+This enables snapshots and clones, where we can capture the VM state on the fly, and preserve it / copy it elsewhere % TODO 20
+% subsection Encapsulation (end)
+% section Virtualisation benefits (end)
+
+\section{Types of hypervisors}\label{sec:Types of hypervisors} % (fold)
+There are a few types of hypervisor. Instead of a type that is given direct access to the hardware, we can run a
+hypervisor on top of another OS. This is useful in a home environment, where perhaps we want to use both our host
+machine, and the VM simultaneously. We also have containers, where there is a virtualisation layer (not hypervisor)
+which runs containers on top of the OS, sharing an OS rather than emulating its own. The hypervisor on bare metal is
+called a Type I hypervisor, hypervisors on top of the OS is Type II, and containers are % TODO 22
+This will be discussed further in exercise 5.
+% section Types of hypervisors (end)
+
+\section{Virtualisation basics}\label{sec:Virtualisation basics} % (fold)
+The hypervisor is like an OS kernel, and VMs are like processes. The hypervisor controls everything, from scheduling
+VMs, allocating memory, and multiplexing IO devices. We then need to ask, how do the VM OSs think that they run on bare
+metal and control everything? Well, the hypervisor needs to fake it.
+
+\subsection{Virtualisation mechanics (how to fake it)}\label{sub:Virtualisation mechanics (how to fake it)} % (fold)
+We will focus on Type 1, though most is applicable to other hypervisors as well. % TODO 24.
+
+\subsubsection{Trap and emulate}\label{sec:Trap and emulate} % (fold)
+Only the hypervisor runs on bare metal in privileged mode (ring 0). The VMS all run directly on HW in \textbf{user
+mode}. Both user apps, \textbf{and the OS of the VM}. So we then trap and emulate sensitive instructions, where
+applications making system calls trap into the hypervisor, and the hypervisor calls the OS handler (in user mode). If
+the OS uses privileged instructions, it traps to the hypervisor (General Protection Fault), and the hypervisor executes
+the instructions on its behalf. This can work if the number of traps is not too large (and if the architecture supports
+trap and emulate).
+
+This operates under the assumption % TODO 25
+% subsubsection Trap and emulate (end)
+
+\subsubsection{Sensitive but Unprivileged Instructions (Red Pills)}\label{sec:Sensitive but Unprivileged Instructions (Red Pills)} % (fold)
+WE have unprivileged instructions that read data that can only be set by privileged instructions (such as PUSHFD, which
+writes the interrupt enable flag to the stack), and behave differently in privileged / unprivileged mode, for example
+POPFD which reads the interrupt enable flag into the EFLAGS register (if in ring 0), and does nothing if it is in ring
+3. \\
+To resolve this, we use dynamic binary translation, which is needed if not all sensitive instructions are privileged:
+\begin{enumerate}
+    \item It translates all VM code blocks into safe code, where for normal code it uses identity translation, and for
+        sensitive code it replaces with "hypercalls" % TODO 29
+\end{enumerate}
+% subsubsection Sensitive but Unprivileged Instructions (Red Pills) (end)
+
+\subsubsection{Hardware assistance for type 1}\label{sec:Hardware assistance for type 1} % (fold)
+Comply with the Popek/Goldberg theorem, where all sensitive operations must be privileged, and cause a trap which can be
+caught. Then we support virtualisation in the processor hardware, so there is a new privileged mode (unofficially known
+as ring -1), and now the VM (guest kernel) can run in native ring 0. Therefore, this can now trap to the hypervisor for
+every sensitive operation.
+% TODO 32
+% subsubsection Hardware assistance for type 1 (end)
+
+\subsubsection{Shadow tables}\label{sec:Shadow tables} % (fold)
+We can virtualise the MMU by pointing it to a real page table (shadow table) while making the guest OS think it's still
+managing it via the guest page table. The shadow table will map the guest OS pages to real memory frames, managed by the
+hypervisor, and the mapping is based on a virtual frame to real frame mapping, maintained by the hypervisor. This has
+the same page table structure (pages) as the guest page table, but pages containing the guest page table are read only.
+
+These come with the pros of hardware speed memory access, as long as there are no page faults, however, it will be
+incredibly when when there are page faults, since we must trap every tie the guest page table is updated (since an
+access violation = page fault), which is to say we must trap all page faults. Thus, every page fault is now a VM exit
+event (which is really very slow)
+% subsubsection Shadow tables (end)
+
+\subsubsection{Nested paging}\label{sec:Nested paging} % (fold)
+Here we introduce "second level address translation" or \textbf{SLAT}, also known as nested paging. This is also known
+on Intel as the Extended Page Table (EPT) % TODO 36
+
+So we have no shadow page table, the page table is managed by the guest OS, and page table translation ends in a virtual
+frame. Now we add another (2nd) page table like translation from a virtual frame, to a physical frame (visible only to
+the hypervisor), and the second page table is managed by the hypervisor.
+
+The original (and hierarchical) page table is based on frame numbers, pointing down the table hierarchy. So, this method
+requires a second level translation for all of them, which is of course slower.
+% TODO image the grim reality of SLAT page 39
+
+However, it is not that bad in reality. We do need a second level translation for each virtual to real translation, but
+this is at the speed of the hardware, and we have the TLB to rescue us in this. % TODO 42
+% subsubsection Nested paging (end)
+% subsection Virtualisation mechanics (how to fake it) (end)
+% section Virtualisation basics (end)
+
+\section{Containers}\label{sec:Containers} % (fold)
+Here we virtualise the OS, and no the hardware. Each container has its own file-system, memory, and OS resources, as if
+it runs by itself, however, the hardware is shared. Containers are a middle ground between processes and VMs. For
+example, processes share file systems, and containers do not.
+
+However, we have said that \textbf{processes} are virtual machines, as the applications see it, exactly like ocntainers.
+We may take another view on containers, which is that they are packaging a set of processes, having their own OS
+resources % TODO 45
+
+\subsection{Namespaces}\label{sub:Namespaces} % (fold)
+A \textbf{namespace} wraps a global system resource in an abstraction that makes it appear to the processes within the
+namespace that they have their own isolated instance of a global resource. We define 7 namespaces: \begin{itemize}
+    \item PID
+    \item User
+    \item Mount
+    \item Network
+    \item IPC
+    \item UTS
+    \item cgroups
+\end{itemize}
+
+Each process has its own address space, and restricted privileges. Containers can be defined as each having its own
+namespaces. So where Container A has its own PID namespace, implying % TODO 47
+
+% TODO table 48
+% subsection Namespaces (end)
+% section Containers (end)
+
+\section{Virtualisation}\label{sec:Virtualisation} % (fold)
+\subsection{IO virtualisation}\label{sub:IO virtualisation} % (fold)
+We have a few options here that can be carried out. We may firstly emulate the devices in the hypervisor. % TODO 53
+% subsection IO virtualisation (end)
+% section Virtualisation (end)
+
+\section{Type 2 hypervisors}\label{sec:Type 2 hypervisor} % (fold)
+Until now we have spoken just of type 1, which duplicates much OS functionality. Type 2 avoids duplication, and uses OS
+services, where the OS schedules the VMs, and allocates memory. Files are used to emulate disks, and VMs can be killed
+with signals. This requires a hypervisor related kernel module.
+% section Type 2 hypervisor (end)
+
+\section{Paravirtualisation}\label{sec:Paravirtualisation} % (fold)
+Here we modify the guest OS, so that all calls to privileged instructions are changed to hypervisor calls (hypercalls),
+which reduces the number of traps, and removes sensitive instructions, but requires recompiling the guest OS
+specifically for each host OS. It is much easier, and more efficient, to modify source code, than to emulate hardware
+instructions (as in binary translation), but also means that one cannot run any guest OS as is, but rather need to
+access the source code.
+% section Paravirtualisation (end)
+
+\section{Products}\label{sec:Products} % (fold)
+There are a few different systems. Microsoft have have Hyper-V, which is type 1 ish. QEMU, which is a system emulation
+mode (complete binary translation) and is type 1. % TODO
+% section Products (end)
+
+
+\end{document}
