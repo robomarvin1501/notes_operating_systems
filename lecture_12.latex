@@ -1,0 +1,262 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 12 - File systems}
+\author{Gidon Rosalki}
+\date{2025-06-22}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+
+\vspace{1cm}  % Add space before the rest of the content
+
+\begingroup
+\centering
+{\color{red}\bfseries\LARGE This content will not appear in the exam this year! \par}
+\endgroup
+
+\vspace{1cm}  % Add space before the rest of the content
+
+\section{Files}\label{sec:Files} % (fold)
+A file is a named persistent sequential data storage. Sequential indicates that the data within the file is ordered, and
+may have some structure. Persistent indicates that it lasts between restarts, and named means that it can be found based
+off its name.
+
+\subsection{Names}\label{sub:} % (fold)
+Names are external to the operating system, and exist in many contexts: \begin{itemize}
+    \item Access hsared memory segments (shmget, shmat)
+    \item Domain name service to find web hosts
+    \item Well known ports for certain services
+\end{itemize}
+One needs to remember the name to access the file, or possibly find it in a list, though this can take a long time. A
+modern alternative is to search by content.
+% subsection  (end)
+
+\subsection{Persistence}\label{sub:Persistence} % (fold)
+Files are stored on non-volatile devices, such as disks and other magnetic media, SSDs (non-volatile memory), and so
+data is retained when computer turned off. Data also survives the process which created the data. Typically one process
+creates the file, and others read the data later. This is as opposed to memory which is created and dies with the
+process.
+% subsection Persistence (end)
+
+\subsection{Structure and meaning}\label{sub:Structure and meaning} % (fold)
+In unix, data is a sequence of byutes. It can represent text, pictres, video, sound, program source code, program
+binary, numerical data, and so on. In IBM mainframes, data is a sequence of records for databases. Finally, in windows
+NTFS, it is a set of attribute value pairs, e.g. the file's icon with an indication of the internet source. It always
+has an unnamed data stream wit contents.
+
+\subsubsection{Filename extensions}\label{sec:Filename extensions} % (fold)
+By \textbf{convention}, the filename is divided into 2 parts, the name, and the extension. However, extension-less files
+are also common in Linux. Applications such as a C compiler might insist on extensions.
+% subsubsection Filename extensions (end)
+% subsection Structure and meaning (end)
+
+\subsection{OS connection}\label{sub:OS connection} % (fold)
+There needs to be a separation of concerns between the OS and the application.
+Operating system: \begin{itemize}
+    \item Provide infrastructure and support
+    \item Store and retrieve the data
+    \item Keep metadata about the data
+    \item Don’t limit the application
+\end{itemize}
+
+Application: \begin{itemize}
+    \item Do interpretation and processing
+    \item Create and use the data
+    \item Decide on data format (how things are represented)
+    \item Know what the data means
+\end{itemize}
+
+The file system has an API, which abstracts files, directories and naming, and sharing and protection. To implement a
+file system, the OS needs to be responsible for storing the data, space allocation methods and management, and provide
+reliability and performance.
+
+The FS operations are \textbf{system calls}. The OS implementation uses privileged instructions to activate storage
+devices, and devices report completion using interrupts.
+
+There are a few popular file systems. Linux generally uses ext4, the latest revision of the extended file system. The
+previous version, ext3 could only support disks up to 16TB, which have since become more common, along with even larger
+disks. We will mainly focus on ext3, but there is a lot of equivalence between it and ext4. Windows just uses NTFS, and
+finally USB sticks tend to use FAT32 or exFAT. FAT32 can only support a limited size of files, so everyone is moving
+over to exFAT (you are recommended to always reformat new USB sticks to exFAT, if they were originally FAT32).
+
+\subsubsection{Basic file system operations}\label{sec:Basic file system operations} % (fold)
+Have a nice big list of basic file system operations:
+\begin{itemize}
+    \item Create a file
+    \item Delete a file
+    \item Open a file
+    \item Close a file
+    \item Write to a file
+    \item Read from a file
+    \item Seek to somewhere in a file
+    \item Truncate a file
+    \item Set attributes of a file
+    \item Get attributes of a file
+    \item Rename a file
+\end{itemize}
+% subsubsection Basic file system operations (end)
+
+\subsubsection{File attributes}\label{sec:File attributes} % (fold)
+File specific info is maintained by the OS, called the metadata. This varies a lot across different OSs. There are two
+parts to the metadata, the user facing, and the internal. \\
+User facing: This contains things like the name (used to identify the file, human readable), the type (needed for
+systems that support different types), the size, the owner user identification (for protection and security), access
+rights (who can read, write, execute), and the time of creation, modification, and access. This last field is used
+extensively by GNU make. \\
+The internal OS use parts include the identifier, a unique tag (number) that identifies the file within the file system,
+and the location, which is a pointer to the file location on the device.
+% subsubsection File attributes (end)
+% subsection OS connection (end)
+
+% section Files (end)
+
+\section{Files namespace}\label{sec:Files namespace} % (fold)
+The motivation behind naming the file is to re-access the data that was stored previously, such that the user need not
+remember the block, sector, and so on. This way a process can create a file, and give it a name, and the human can later
+on find it in another process, and read it.
+
+Naming conventions are OS dependent. Usually names as long as 255 characters are allowed, and digits and special
+characters (such as space) are sometimes allowed. MS-DOS and Windows are not case sensitive (for they are fools), where
+the UNIX family is. The naming administration is done separately to the data.
+
+\subsection{Organisation}\label{sub:Organisation} % (fold)
+Files are organised in a hierarchy of directories, which aim to obtain: \begin{enumerate}
+    \item Efficiency - locating a file quickly, we want to avoid a single huge list with all the files
+    \item Separation - convenient to users. This way two users can have the same name for different files, and the same
+        file can have several different names
+    \item Grouping: Logical grouping of files based off contents, properties, or usage. E.g. all java programs, all
+        games, and the files related to OS exercise 4, and so on.
+\end{enumerate}
+
+\subsubsection{Directories}\label{sec:Directories} % (fold)
+Directories map names to file objects. They are one level of the naming hierarchy. This data is stored in files, so
+directories are in fact files themselves. A bit in the file metadata object (inode) indicates if it is a directory, and
+the OS interprets the format of the directory file data. One should ideally use an efficient data structure, to enable
+speed in searching / other file operations.
+
+We can achieve this by having the namespace have a tree structure, of arbitrary height. Nodes are directories and files,
+and internal nodes are directories. Directories contain files, and sub-directories. Names are relative to a directory,
+and files are identified by their path from the root.
+
+File systems have a root directory, and processes have a working directory. This is typically the home directory of
+their user. To access a file, the process needs to specify the path in which the file is located. Path names are either
+absolute or relative: \begin{itemize}
+    \item  Absolute: path of file from the root directory
+    \item  Relative: path from the current working directory
+\end{itemize}
+Path components are separated by / (unix) or \\ (windows, like fools). Most OSes have two special entries in each
+directory: "." for current directory ".." for parent.
+
+We can also have acyclic links between directories, where we have files located under two different directories
+simultaneously (remember, directories are also files). This can be done through hard links and soft links.
+\begin{itemize}
+    \item Hard links: We can only perform these for files, not directories, to avoid recursive loops. They may also only
+        be created across the same file system. They point at files (not names), and so are move safe. They are also
+        reference counted, and so are delete safe
+    \item Soft links (AKA symbolic links): These are links between any file and directory, and are neither move, nor
+        delete safe. Should you delete a file, the soft link will still exist.
+\end{itemize}
+% subsubsection Directories (end)
+
+\subsubsection{Protection}\label{sec:Protection} % (fold)
+File owner / creator should be able to control what can be done, by whom. There are 6 types of access, Read, Write,
+Execute, Append, (Dir) Delete, (Dir) List. Note, creating and deleting files are operations on the \textbf{directory}.
+
+We have some categories of users to consider when it comes to protection and access rights. The individual user, who
+establishes a user id on log in, which might be just local on the computer, or could be through interaction with a
+network service, and groups, to which users belong, such as wheel, or docker.
+
+To express access rights, we have two methods: \begin{itemize}
+    \item Minimal (*nix): Just a single user, group, and the rest, which is compact enough to fit in just a few bytes.
+        However, this is not very expressive.
+    \item Detailed (Windows): A per file list that tells exactly who can do what to that file, which is useful in its
+        expressiveness, but is in no way compact
+\end{itemize}
+
+Linux access rights dictate 3 modes of access: read, write, and execute. There are 3 classes of users, the owner, the
+group, and the others. For each file or directory, we define desired access rights as 9 bits. Each group of 3 indicates
+RWX for each of the groups.
+% subsubsection Protection (end)
+% subsection Organisation (end)
+% section Files namespace (end)
+
+\section{Layout and Access}\label{sec:Layout and Access} % (fold)
+When accessing a file, we maintain our current location in an open file, and access is relative to this location. This
+location can be changed based off \lstinline[columns=fixed]{rewind} or \lstinline[columns=fixed]{seek}.
+
+How we layout the information on the disk can cause problems. It we simply store data contiguously, this can lead to
+fragmentation, where there is enough memory to store a file, but it is not contiguous. There are a couple of possible
+solutions: \begin{itemize}
+    \item Compaction: Move around data in disk, to unify holes and create large enough holes to accommodate future
+        files. This may improve performance thanks to serial access, however this is very costly, and there is not
+        necessarily enough space to move around data like this.
+    \item Divide files into fixed size blocks (usually 4KB), and all operations are made on blocks. This is similar to
+        paging in memory management.
+\end{itemize}
+
+When using a block system, the user views a file as contiguous data, the API views it as a sequence of bytes, of
+arbitrary size, the FS views it as a collection of 4KB blocks, and the disk views it as individual sectors (512 bytes).
+Accesses are not necessarily aligned with blocks, and blocks may span multiple sectors.
+% section Layout and Access (end)
+
+Note, these notes are incomplete in comparison to the lecture. I ran out of energy, especially since the content is
+extra (though fascinating). % TODO
+
+
+\end{document}
