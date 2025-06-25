@@ -1,0 +1,227 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 13 - Filesystems}
+\author{Gidon Rosalki}
+\date{2025-06-25}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+
+\vspace{1cm}  % Add space before the rest of the content
+
+\begingroup
+\centering
+{\color{red}\bfseries\LARGE This content will not appear in the exam this year! \par}
+\endgroup
+
+\vspace{1cm}  % Add space before the rest of the content
+
+\section{File}\label{sec:File} % (fold)
+A file is a logical unit of information, and not an address in the disk. It contains information like ADT (abstract data
+type), has a name, content (typically a sequence of bytes), metadata / attributes such as the creation date, size, and
+so on, and we can apply operations to it such as read, rename, and more. Furthermore, files are persistent, and can
+survive power outages, and outlive processes. This means that processes can use files, die, and then another process can
+use the same files.
+
+\subsection{Metadata}\label{sub:Metadata} % (fold)
+File metadata includes the following information: \begin{itemize}
+    \item Size
+    \item Owner
+    \item Permissions, generally read, write, and execute
+    \item Timestamps: This is the creation time, and the last time that the content  metadata were modified / accessed.
+        These are used by Makefiles, so if a file has been modified since \lstinline[columns=fixed]{make} was last run,
+        then \lstinline[columns=fixed]{make} knows to recompile it. Otherwise, there is no reason so to do
+    \item Location: This is the location on the disk (since it is a block device), and details where the file's blocks
+        reside on the disk
+    \item Type: Binary, text, whether or not it is a file or a directory
+\end{itemize}
+% subsection Metadata (end)
+
+\subsection{inode}\label{sub:inode} % (fold)
+The inode is a data structure in the Unix File System, that stores a file (or directory) metadata. It includes a
+hierarchical index of disk blocks, where the file is located: \begin{itemize}
+    \item A few (around 12) \textbf{direct pointers}, which list the first blocks of the file (useful for small files)
+    \item A single \textbf{indirect pointer}, which points to a block of additional direct pointers (useful for medium
+        files)
+    \item A \textbf{double indirect pointer}: Points to a block of indirect pointers (large files)
+    \item \textbf{Triple indirect pointer}: Points to a block of double indirect pointers (huge files)
+\end{itemize}
+This results in the following inode structure:
+\begin{figure}[H]
+    \center
+    \includegraphics[scale=0.4]{tutorial_13_inode_structure}
+    \caption{inode file structure}
+\end{figure}
+So here we can see that for all files, it will begin by filling the direct pointers, then the indirect, and so on down
+the hierarchy.
+
+Assuming 32 bit inodes, where each pointer is 4 bytes, the blocks are 4096 bytes, then the 12 direct pointers provide
+access to up to 48KB. The indirect block contains 1024 bytes of additional pointers, resulting in a data size of 4MB,
+the double indirect block has 1024 pointers to indirect blocks, so it points to 4GB of data, and finally the triple
+indirect block allows files of up to 4TB.
+% subsection inode (end)
+
+\subsection{Directories}\label{sub:Directories} % (fold)
+Directories are stored like files. In the inode metadata, their type is assigned to be directory. The content (data
+blocks) will encode a mapping of the contained file / directory to its inode. This can be shown using the
+\lstinline[columns=fixed]{-i} tag to the \lstinline[columns=fixed]{ls} command.
+
+An interesting quirk is that files do not store their names, only directories store the names of the files within them.
+% subsection Directories (end)
+
+\subsection{Superblocks}\label{sub:Superblocks} % (fold)
+So, how do we allocate blocks for files and directories? Well, we use the superblock. This is located on the main
+memory, and it manages the allocation of blocks on the file system area. This block contains the size of the file
+system, a list of free blocks available on the FS, a list of unused inodes, and more. Using this information, it is
+possible to allocate disk blocks for saving file data or file metadata. It is presumably stored in a location that is
+known prior, since we need this information to be persistent.
+
+An inode's space is allocated when creating a new FS, hence the number of inodes (number of ifles + folders) is limited.
+The superblock caches a short list of free inodes, and when a process needs a new inode, the kernel can use this list
+to allocate one. When an inode is freed, its location is written in the superblock, but only if there is room in the
+list. If the superblock list of free inodes is empty, then the kernel will search the disk, and add other free inodes to
+the superblock list.
+
+When a process writes data to a file, the kernel must allocate disk blocks from the FS for a direct, or indirect block.
+When the kernel wants to allocate a block from the FS, it allocates the next available block in the superblock list.
+% subsection Superblocks (end)
+
+\subsection{Storing and accessing data}\label{sub:Storing and accessing data} % (fold)
+\subsubsection{Opening a file}\label{sec:Opening a file} % (fold)
+Storing data in a file involves the following operations:  \begin{itemize}
+    \item Allocation of disk blocks to the file
+    \item Read (not always) and write operations
+    \item Optimisation: Avoiding disk access by caching data in memory
+\end{itemize}
+
+When you open a file, a file descriptor (FD) is an abstract handle used to access a file or other input/output
+resources, such as a network socket. Threads share the FD table (and the file offset), and once an FD exists, it will
+always point to the same file. Remember, in Unix "everything" is a file. Successful calls to
+\lstinline[columns=fixed]{open} return an FD, which is a nonnegative int, which is an index to a per process array
+called the "file descriptor table".
+
+There are several predefined FDs: \begin{table}[h!]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         File & FD & POSIX symbolic constant \\ \hline
+         Standard input & 0 & STDIN\_FILENO \\ \hline
+         Standard output & 1 & STDOUT\_FILENO \\ \hline
+         Standard Error & 2 & STDERR \\ \hline
+     \end{tabular}
+     \caption{}
+\end{table}
+
+When opening a file, (so we just called \lstinline[columns=fixed]{fd = open("myfile", R)}, the FS reads the current
+directory, and finds the named file is represented internally by a specific inode number in the list of files maintained
+by the disk. The relevant entry is then read from the disk, and copied into the kernel's open file tables. The user's
+access rights are then checked, and the user's variable \lstinline[columns=fixed]{fd} is made to point to the allocated
+entry in the open files table. \lstinline[columns=fixed]{fd} serves as a handle ,telling to which file the user tries to
+access with subsequent read and write system calls, without allowing the user code to actually access kernel data.
+
+
+We need the open file table to check permissions (once), and store the file offset (how far into the file we have read).
+All the operations on the file are performed through the file descriptor.
+% subsubsection Opening a file (end)
+
+\subsubsection{Reading from a file}\label{sec:Reading from a file} % (fold)
+Consider \lstinline[columns=fixed]{read(fd, buf, 199)}. The argument \lstinline[columns=fixed]{fd} identifies the open
+file, by pointing into the kernel's open files table. The system then gains access to the list of blocks that contain
+the file's data, and the file system reads the relevant disk block into its buffer cache. Finally, 100 bytes are copied
+into the users memory, at the address indicated by \lstinline[columns=fixed]{buf}.
+% subsubsection Reading from a file (end)
+
+\subsubsection{Writing to a file}\label{sec:Writing to a file} % (fold)
+Assume the following scenario: We want to write 100 bytes, starting with byte 2000 in the file, and each disk block is
+1024 bytes. Therefore, the data we want to write spans the end of the second block through the beginning of the third
+block. When modifying a block, we need to read it in its entirety into the buffer cache, and then overwrite part of it
+with the new data.
+
+The buffer cache is important to improve performance, since if we write to a buffer, we will probably want to write to
+it again soon. However, this can cause reliability issues, since it delays the writeback to the disk, and therefore data
+can be lost to sudden shutdowns, or perhaps USB removal.
+% subsubsection Writing to a file (end)
+
+\subsubsection{Location in the file}\label{sec:Location in the file} % (fold)
+The \lstinline[columns=fixed]{read} system call is given a buffer address for placing the data in the user's memory,
+without an indication of the offset in the file from which the data should be taken. The OS maintains the current offset
+into the file, which is updated after each operation, and if random access is required, the process can set the file
+pointer to any desired value by using the \lstinline[columns=fixed]{seek} system call.
+% subsubsection Location in the file (endThe file descriptor table – separate for each
+
+\subsubsection{OS file tables}\label{sec:OS file tables} % (fold)
+
+\begin{itemize}
+    \item The file descriptor table: This is separate for each process. Each entry points to an entry in the open files
+        table, and the index of this slot is the \lstinline[columns=fixed]{fd} that was returned by
+        \lstinline[columns=fixed]{open}
+    \item The open files table: An entry in this table is allocated every time a file is opened. Each entry contains a
+        pointer to the inode table, and a position within the file. There can be multiple open file entries pointing to
+        the same inode.
+    \item The inode table: Each file may appear at most once in this table.
+\end{itemize}
+
+
+% subsubsection OS file tables (end)
+
+
+% subsection Storing and accessing data (end)
+% section File (end)
+
+\end{document}
