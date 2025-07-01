@@ -1,0 +1,334 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage{hyperref}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 5 - Synchronisation part 1}
+\author{Gidon Rosalki}
+\date{2025-04-27}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Coordination}\label{sec:Coordination} % (fold)
+Here is a different synchronisation problem, coordination rather than contention. Consider 2 processes, where 1 needs to
+execute segment A before 2 executes segment B. We can use the semaphore here, where A set sit to up at the end, and b
+waits on it to be up. Let us now consider a slightly more complex example: \\
+Thread 1 transfers money from account A to B, and 2 from B to A. If executed simultaneously, errors might occur (e.g.
+Thread 1 executes A--, while thread 2 executes A++). Here we may similarly do down before the critical segment, and up
+at the end, much as we saw last week. \\
+Now, let us consider having 3 threads instead, where A transfers to B, B to C, and C to D. This time, we can give each
+segment its own lock, instead of a single semaphore flag, so before A it calls down on SA, and SB, since we now cannot
+touch A or B, and after it calls up on those again. At the beginning of moving from B to C, we call down on SB and SC,
+and similarly up at the end, and may do this for all out threads. However, semaphores are not silver bullets, it could
+be that all try and enter the beginning of the critical section (and call down on the relevant semaphores)
+simultaneously, and thus enter a deadlock.
+
+Let us consider the dining philosophers problem. Philosophers spend their life alternating between eating and thinking.
+Eating requires 2 chopsticks, and the philosophers, who are all sitting around a circular table, all have one chopstick
+to the right, and one to the left. So, the order goes: \begin{enumerate}
+    \item Pick up chopsticks
+    \item Eat
+    \item Put down chopsticks
+    \item Think
+\end{enumerate}
+The philosophers pick up 1 chopstick at once, and 2 philosophers cannot simultaneously hold a chopstick. We can try and
+solve this by the following bloc:
+
+\begin{lstlisting}
+down(chopstick[(i + 1) mod num_philosophers )
+down(chopstick[i])
+    Eat
+up(chopstick[(i + 1) mod num_philosophers )
+up(chopstick[i])
+    Think
+\end{lstlisting}
+However, they can all take their left hand chopstick simultaneously, and then be stuck waiting for the right hand
+chopstick, resulting in a deadlock. We can instead change the code of the last philosopher in the circle, such that he
+tries to take the right chopstick first, instead of the left. Then if we run round the circle, everyone takes the
+left chopstick, aside from the last, who tries to take the right, and fails, and then we get back to 0, who takes the
+untouched chopstick of the last, and may eat, and thus we have removed the deadlock. We shall prove that this meets
+progress formally: If a philosopher picks up a chopstick, then eventually some philosopher eats. Assume the philosopher
+$i$ tries to pick up a chopstick, but no philosopher ever eats, then therefore no philosopher is able to grab a second
+chopstick. \\
+Cases (consider 6 philosophers): \begin{enumerate}
+    \item $i = 1, 2, 3$ \begin{itemize}
+            \item $i$ tries to take chopstick $i + 1$, but fails, and so philosopher $i + 1$ took chopstick $i + 1$
+                (namely its second one), which is a contradiction.
+            \item $i$ took chopstick $i + 1$, and then waits for $i$. Then philosopher $i - 1$ took $i$, and waits for
+                $i - 1$, and so on until 0 took 1, and waits for 0, while 5 has taken 0, and then 5 will eat.
+        \end{itemize}
+    \item $i = 0$ \begin{itemize}
+            \item 0 tries to pick up 1, but fails, and therefore 1 took 1 (his second), which is a contradiction. If
+                however 0 tries to pick up 0, and fails, and 5 took 0, which would be his second, we have a
+                contradiction.
+        \end{itemize}
+    \item $i = 4$: \begin{itemize}
+        \item Philosopher 4 tries to pick up 5, but fails, so then we have that philosopher 5 took chopstick 5, and
+            waits for 0, and 0 took 0, which would be his second one, and thus we have a contradiction.
+    \end{itemize}
+    \item $i = 5$ \begin{itemize}
+        \item Philosopher 5 tries to pick up chopstick 0, but fails, therefore philosopher 0 picked up chopstick 0 (his
+            second), which is a contradiction
+        \item Philosopher 5 tries to pick up chopstick 5, but fails, thus philosopher 4 picked up chopstick 5, and waits
+            for 4, $\dots$, 0 took 1, and waits for 0, however 5 still waits on 5, and so 0 is free
+        \item Philosopher 0 will grab chopstick 0, which is a contradiction.
+    \end{itemize}
+\end{enumerate}
+
+The problem with this solution, is that even for huge tables (100000s of philosophers), only one eats at any time. We
+may instead create a better solution where the odd threads take the left chopstick, and the even threads take the right
+chopstick. This provides better concurrency, since 2 philosophers can always eat at the same time, rather than 1.
+% section Coordination (end)
+
+\section{Coffman Conditions: Necessary conditions for deadlock}\label{sec:Coffman Conditions: Necessary conditions for deadlock} % (fold)
+Much as Dijkstra created a bunch of conditions for us last week, let us now consider the Coffman Conditions to create a
+deadlock: \begin{enumerate}
+    \item Mutual Exclusion: At least 1 resource must be held in a non shareable mode
+    \item Non Pre-emptive Allocation: A resource can be released only voluntarily by the process holding it
+    \item Hold and wait: A thread is holding one resource, and is requesting a resource that is held by another thread
+    \item Circular wait: A waits on B, B on C, and C on A
+\end{enumerate}
+1 and 2 are the basic notion of resource allocation, and cannot be changed, 3 is how the OS works, and can be limited to
+avoid deadlocks, and 4 is usually the cause for deadlocks, i.e. non deterministic race conditions.
+
+\subsection{Deadlock prevention}\label{sub:Deadlock prevention} % (fold)
+We must prevent at least 1 of the 4 conditions from holding. \begin{itemize}
+    \item We can prevent "hold and wait" by not asking for resources one by one, and instead specify all needed resources
+        at once, and the OS either approves or denies the request. However, this has the downside of of holding
+        resources for longer than needed.
+    \item Non pre-emptive allocation: The OS may decide to release a process' resources, and we will see an example
+        later, in memory management.
+    \item Circular wait: Can be prevented by acquiring resources in a predefined order (such as with the philosophers).
+\end{itemize}
+So deadlocks \textit{can} happen, but we should avoid them. OSs can use look ahead to order processes, so each process
+declares in advance its needed resources, and the OS schedules them in a way that is safe. This can be done through the
+banker's algorithm (Dijkstra), though be warned, this has a high overhead.
+
+\subsubsection{The Banker's algorithm}\label{sec:The Banker's algorithm} % (fold)
+We will denote $M_p$ to be the maximal requirements of each process, $C_p$ the current allocation to each process, nad
+$A$ the currently available resources. For example, $A = \left(3, 0, 1\right)$ indicates that there are 3 units of
+resource \#1, 0 of \#2, and 1 of \#3. \\
+A safe state is when there exists a scheduling so that each proess gets the resources it needs, and then releases them
+for the next process. If the OS follows this scheduling, then there is no deadlock. Assume that the current state $s$ is
+safe, and that the process $p$ requests $R$. The new state $s'$ is given by \begin{align*}
+    C_p &\gets C_p + R \\
+    A &\gets A - R
+\end{align*}
+We check whether or not $s'$ is safe, and if so allocate the resources, and if not, block $p$ until things change.
+% \usepackage{algorithm,algorithmicx,algpseudocode}
+\begin{algorithm}[H]
+    \floatname{algorithm}{Banker's algorithm}
+    \algrenewcommand\algorithmicrequire{\textbf{Input: }}
+    \algrenewcommand\algorithmicensure{\textbf{Output: }}
+    \caption{}\label{alg:}
+    \begin{algorithmic}[1]
+        \Require $input$
+        \Ensure $output$
+        \State $P \gets \left\{\text{all processes} \right\}$
+        \While{P $\ne \emptyset$}
+            \State found = false;
+            \For{$p \in P$}
+                \If{$M_p - C_p \leq A$}
+                    \State $A = A + C_p$
+                    \State $P = P - \left\{p\right\}$
+                    \State found = true
+                \EndIf
+            \EndFor
+            \If{!found}
+                \State \textbf{return} $FAIL$
+            \EndIf
+        \EndWhile
+        \State \textbf{return} $OK$
+    \end{algorithmic}
+\end{algorithm}
+
+This runs in $O \left(n^2\right)$.
+% subsubsection The Banker's algorithm (end)
+% subsection Deadlock prevention (end)
+
+\subsection{Deadlock detection}\label{sub:Deadlock detection} % (fold)
+With this concept, deadlocks will occur, but we can fix them, rather than just prevent them from occurring. This should
+be a last resort solution. Here the OS looks for "hold and wait" cycles in the resource graph. When this happens, the OS
+kills one of the processes. This has the benefits of low overhead, but processes are killed violently.
+% subsection Deadlock detection (end)
+
+In real life, OSs tend to employ the \textbf{ostrich} algorithm, and simply pretend that the problem does not exist
+(note for the reader, it is important to remember, that when one sticks one's head in the sand, one is only left with a
+singular orifice with which to communicate with the world). So processes should take care of these things.
+
+To wrap up deadlocks, they usually cannot be detected by the OS, and are very tricky to debug since they do not happen
+in every execution. It is good practice to \begin{itemize}
+    \item Order the resources
+    \item Always lock the resources in the same order (e.g. high to low)
+    \item Release resources in the reverse order
+\end{itemize}
+% section Coffman Conditions: Necessary conditions for deadlock (end)
+
+\section{Producer consumer}\label{sec:Producer consumer} % (fold)
+We already saw half of the problem last week, a contention between two printing processes on the IN counter can lead to
+overriding jobs and gaps in the job queue array. Similarly, we can have these problems in the OUT array, when there is
+more than one printer process at once. Should the buffer be of bounded size, then we can potentially manage it using a
+cyclic operation, but we still need to ask how are empty / full buffers handled?
+
+Let us assume that we only have a single producer, and a single consumer. Then the producer can be: \begin{lstlisting}
+while (COUNT == n);
+
+buffer [IN] = job;
+IN = IN + 1 mod n;
+COUNT++;
+\end{lstlisting}
+
+and the consumer \begin{lstlisting}
+while (COUNT == 0);
+
+job = buffer[OUT];
+OUT = OUT + 1 mod n;
+COUNT--;
+\end{lstlisting}
+And of course everything here must be atomic.
+
+We have an alternative solution, producers and consumers using semaphores:
+Producer: \begin{lstlisting}
+down(empty);
+dowm(nutex);
+
+buffer[IN] = job;
+IN = IN + 1 mod n;
+
+up(mutex);
+up(full);
+\end{lstlisting}
+
+and the consumer: \begin{lstlisting}
+down(full);
+down(mutex);
+
+job = buffer[OUT];
+OUT= OUT + 1 mod n;
+
+up(mutex);
+up(empty);
+\end{lstlisting}
+Where mutex has the initial value of $1$, empty of $n$, and full of 0.
+
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_5_monitor_structure}
+    \caption{Monitor structure}
+\end{wrapfigure}
+Another approach is to use monitors. These are a programming language construct, which support controlled access to
+shared data. Here, the synchronisation code is added by the compiler. They encapsulate shared data structures,
+procedures that operate on the shared data, and synchronisation between concurrent threads that invoke those. Data is
+only accessible from within the monitor using the provided procedures, which protects the data from unstructured access.
+This addresses the key usability issues that arise from semaphores. They automatically provide mutual exclusion, since
+only one thread is executing within at any given time, and so synchronisation is also implicitly provided by the
+monitor. If a second thread tries to execute a monitor procedure, then it blocks until the first thread leaves. This is
+more restrictive than semaphores, but is mostly easier to use.
+
+In order to properly use monitors, then we need rendezvous points. These are points in the program where threads will
+wait. These are often provided regardless of monitors in the code, since they are useful in a variety of locations.
+There are 3 operations on condition variables: \begin{itemize}
+    \item \lstinline[columns=fixed]{wait}: Releases the monitor lock so someone else can get in, and waits for someone
+        else to signal condition, thus condition variables have associated wait queues.
+    \item \lstinline[columns=fixed]{signal}: Wakes up at most one waiting thread. If there are no waiting threads, then
+        the signal is lost (note this difference from semaphores, there is no history)
+    \item \lstinline[columns=fixed]{broadcase}: Wakes up all waiting threads
+\end{itemize}
+
+We have two models for solving the resource problem, shared memory, and message passing. We assume two threads /
+processes are communicating through a shared resource (mostly shared memory). Another way to communicate is to send and
+receive messages. Similar problems arise here, but the solutions are quite different. This is further discussed in the
+distributed algorithms course. The modern approach to this problem is to use locks. The functionality and implementation
+is similar to that of semaphores, but it has a focus on shared resources rather than the code.
+
+For our focus on shared resources, we define multiple locks, for various resources. Perhaps we lock the file system,
+where we lock all tables involved in the file system. Perhaps we can lock the tables for a single directory, or even for
+a single file. Each option allows different layers of granularity.
+
+For example, let us consider the ready queue. The scheduler, the disk interrupt handler, and the OS function that
+creates new processes all need to modify the ready queue. The scheduler (due to a clock interrupt) to select the next
+process to run, and remove it from the queue, the disk interrupt handler to move a waiting process to the ready queue,
+and finally the OS which adds new PCBs to the ready queue. All of these operations need a lock to the ready queue.
+
+We may also consider reader-writer locks. Two processes that only read from a data structure have no need to lock. Here
+we have 2 modes, locked for reading, and locked for writing. Simultaneous locks for reading are allowed, but a lock for
+writing prevents all other locks (yes, also reading).
+
+However, locks have some pitfalls, for example, priority inversion. If thread 1 (lock priority) holds a lock, and thread
+2 (high priority) waits for a lock, then thread 3 (medium priority) comes along and preempts thread 1, preventing it
+from releasing its lock. We can solve this by temporarily elevating thread 1 to a high priority, and this still has
+deadlock problems, as we discussed previously.
+% section Producer consumer (end)
+\end{document}
