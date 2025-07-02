@@ -1,0 +1,508 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows, calc}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 6 - Scheduling part 1}
+\author{Gidon Rosalki}
+\date{2025-05-04}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+Schedulers are everywhere, any resource with multiple users requires a scheduler, and accordingly we have many different
+types of scheduler: \begin{itemize}
+    \item CPU scheduler (short term scheduler)
+    \item Mid/long-term scheduler (loading into memory)
+    \item Scheduling jobs in the print queue
+    \item Scheduling I/O device requests (e.g. disk scheduler)
+    \item Packet schedulers when networking, deciding which packet is sent in what order
+    \item Scheduling requests in web servers
+    \item Even scheduling in a supermarket / post office, deciding which customer is served first
+\end{itemize}
+
+Recall the process state diagram:
+\begin{center}
+    \begin{tikzpicture}[node distance=4cm, state/.style={circle, draw, minimum size=2cm}]
+        \node[state] (q0) {new};
+        \node[state, right of=q0] (q1) {ready};
+        \node[state, right of=q1] (q3) {running};
+        \node[state, below=2cm of $(q1)!0.5!(q3)$] (q2) {waiting};
+        \node[state, right of=q3] (q4) {terminated};
+
+        \draw   (q0) edge[->, above] node{admitted} (q1)
+                (q1) edge[->, bend right, below] node{scheduler dispatch} (q3)
+                (q3) edge[->, bend right, above] node{interrupt} (q1)
+                (q3) edge[->, bend left, below right] node{IO or event wait} (q2)
+                (q2) edge[->, bend left, below left] node{IO or event completion} (q1)
+                (q3) edge[->, below right] node{exit} (q4)
+                ;
+    \end{tikzpicture} \\
+\end{center}
+This diagram makes use of blocking processes, and the scheduler brings them back to life, but until now we have not so
+much discussed the why or how either of these work. Which process should run, and for how long on the CPU?
+
+To decide this question, we have the scheduler, and the dispatcher. The CPU \textbf{scheduler} decides which process should run
+on the CPU (and sometimes for how long). This is a short term scheduler, because it runs tens/hundreds of times a
+second. The \textbf{dispatcher} is the module responsible for executing the CPU scheduler decisions. It handles the
+context switch, and returning to user mode.
+
+We will assume that different placements of processes by the scheduler are always different jobs, which terminate when
+the process is blocked, for simplicities sake. Interactive (reactive) programs have multiple CPU bursts, one after each
+event, or perform I/O operations separated by CPU bursts.
+
+A scheduler is an algorithm: \begin{itemize}
+    \item \textbf{Input:} The jobs to schedule
+    \item \textbf{Output:} A decision which job to run now
+    \item \textbf{Objective:} "Good performance" (a beautifully nebulous term, that enables even the worst schedulers to be
+        considered good)
+    \item \textbf{Available actions:} Can we pre-empt?
+\end{itemize}
+
+We actually have many different objectives for a scheduler. We want a low response time, ie a low total time to complete
+a job (wait time + run time), since this is what users care about, though not everything is in the scheduler's
+control. The wait time \textbf{is} what the scheduler controls, and the slowdown is how much slower the system appears
+to be, and is measured by: \[
+    \displaystyle\frac{\text{response time} }{\text{run time} }
+\]
+We also want there to be a high throughput, which is measured as \[
+    \displaystyle\frac{\# \text{completed jobs} }{\text{time unit} }
+\]
+If this system is stable, then this is equal to \[
+    \displaystyle\frac{\# \text{started jobs} }{\text{time unit} }
+\]
+For today, we will assume that our systems are stable. \\
+We also want high CPU utilisation, i.e. a high fraction of time that the CPU is busy, not counting overhead. This is
+highly affected by the availability of jobs, and both limited when the system is overloaded. \\
+We also want to ensure fairness, and give each user their fair share, avoid starvation (less of a problem on a stable
+system), and support user/job priorities (ah, but who sets these priorities?). We will typically assume equal shares and
+priorities. \\
+The objectives might contradict each other, in order to optimise throughput, we run jobs to completion, which reduces
+overhead, since we waste less time on context switches, but to optimise response time, we must schedule each new job
+\textit{as soon as possible}, even if this leads to overhead due to context switching.
+Thus in each case we need to ask what are the right objectives for me at this time?
+
+\section{Offline algorithms}\label{sec:Offline algorithms} % (fold)
+An offline algorithm gets all the input at the outset. This is the "easy" setting. Online gets the input piecemeal,
+meaning that at every instant you only receive part of the input. You thus need to produce output based off your current
+knowledge, and you may come to regret those decisions later. \\
+
+We shall use the system model where all jobs are given in advance, with no additional arrivals, and the job runtimes are
+known in advance.
+
+\subsection{Baseline scheduler: FCFS}\label{sub:Baseline scheduler: FCFS} % (fold)
+Here we will use a first come first serve algorithm, consider \begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|}
+         \hline
+         Job & runtime \\ \hline
+         P1 & 17  \\ \hline
+         P2 & 2 \\ \hline
+         P3 & 3 \\ \hline
+     \end{tabular}
+     \caption{Jobs to schedule}
+\end{table}
+So this will run P1, P2, then P3, taking $17 + 2 + 3 = 22$. From this we can create the wait time-response time table:
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Wait time & Response time  \\ \hline
+         0 & 17  \\ \hline
+         17 & 19  \\ \hline
+         19 & 22  \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+So our average waiting time is $\displaystyle\frac{0 + 17 + 19}{3} = 12$, average response time is
+$\displaystyle\frac{17 + 19 + 22}{3} = 19.33$, and our throughput is $\displaystyle\frac{3}{22} = 0.136$. This is
+overall not great, all our tasks wound up waiting a long time to execute. We call this the convoy effect: short jobs get
+stuck behind long jobs. \\
+% subsection Baseline scheduler: FCFS (end)
+
+\subsection{Shortest job first: SJF}\label{sub:Shortest job first: SJF} % (fold)
+We can improve this by putting the short jobs before the long jobs. Should we have 2 jobs, p1 that takes 4, and p2 that
+takes 7, if we run p2 first, then our average wait time is 3.5, and our average response time was 9, but if we swap them
+them then our average wait time is now 2, and our average response time is 7.5. However, the throughput remains
+unchanged at 0.182. Note, that this applies \textbf{every} time a short job comes after a long one.  \\
+
+Let us once again consider \begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|}
+         \hline
+         Job & runtime \\ \hline
+         P2 & 2 \\ \hline
+         P3 & 3 \\ \hline
+         P1 & 17  \\ \hline
+     \end{tabular}
+     \caption{Jobs to schedule}
+\end{table}
+then so this time:
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Wait time & Response time  \\ \hline
+         0 & 2  \\ \hline
+         2 & 5  \\ \hline
+         5 & 22  \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+and our new average wait time is 2.33, new average response time is 9.67, though the throughput remains constant at 0.136.
+% subsection Shortest job first: SJF (end)
+\subsection{Optimality}\label{sub:Optimality} % (fold)
+Can we improve this? No. SJF is optimal in the offline setting, where it aims to optimise the \textbf{average wait
+time}. Pre-emtpion  does not help and the average response time is also optimal.
+The core of the proof is as follows: \begin{enumerate}
+    \item Assume a schedule S has the optimal average wait time
+    \item If S is not SJF, then there are a pair of jobs such that $p_i.\text{runtime} > p_{i + 1}.\text{runtime} $
+    \item Switching these jobs reduces their contribution to the average, without changing anything else
+    \item This is a contradiction to the assumption that S is optimal
+\end{enumerate}
+Hey look! This is just like proving greedy algorithms from algo. It is left as an exercise to the reader to turn this
+into a real proof.
+% subsection Optimality (end)
+% section Offline algorithms (end)
+
+\section{Online algorithms}\label{sec:Online algorithms} % (fold)
+Here jobs will arrive at unknown times (this is called an open system model), but job runtimes are known in advance. We
+will also say that there is no pre-emption.
+
+\subsection{FCFS}\label{sub:FCFS} % (fold)
+Consider the following input: \begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Job & Arrival & Runtime \\ \hline
+         p1 & 0 & 7 \\ \hline
+         p2 & 2 & 4 \\ \hline
+         p3 & 3 & 2 \\ \hline
+         p4 & 6 & 3 \\ \hline
+     \end{tabular}
+     \caption{Job arrivals}
+\end{table}
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|c|}
+         \hline
+         Wait & Start & End & Response \\ \hline
+         0 & 0 & 7 & 7 \\ \hline
+         5 & 7 & 11 & 9 \\ \hline
+         8 & 11 & 13 & 10 \\ \hline
+         7 & 13 & 16 & 10 \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+
+This is still a FCFS method for scheduling, just in an open system. The average wait here is 5, with an average response
+of 9, and a throughput of 0.25. The question is if we could do better, consider for how long every subsequent job had to
+wait before it could begin.
+% subsection FCFS (end)
+
+\subsection{SJF}\label{sub:SJF} % (fold)
+Consider the following input: \begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Job & Arrival & Runtime \\ \hline
+         p1 & 0 & 7 \\ \hline
+         p2 & 2 & 4 \\ \hline
+         p3 & 3 & 2 \\ \hline
+         p4 & 6 & 3 \\ \hline
+     \end{tabular}
+     \caption{Job arrivals}
+\end{table}
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|c|}
+         \hline
+         Wait & Start & End & Response \\ \hline
+         0 & 0 & 7 & 7 \\ \hline
+         10 & 12 & 16 & 14 \\ \hline
+         8 & 7 & 9 & 6 \\ \hline
+         3 & 9 & 12 & 6 \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+
+Here we have slightly improved things, our average wait time has dropped to 4.25, the average response to 8.25 (and
+naturally the throughput remains unchanged at 0.25)
+% subsection SJF (end)
+
+\subsection{Priority scheduling}\label{sub:Priority scheduling} % (fold)
+Many scheduling algorithms can be interpreted as priority scheduling algorithms, we assign each job a priority, and then
+schedule the job with the highest priority. In FCFS the priority is the time since arrival, and in SJF the priority is
+the inverse of the runtime. \\
+
+SJF had a problem, like every online algorithm, it does not know the future. When p1 arrived it was scheduled, but then
+the scheduler was stuck until p1 terminated, even when shorter jobs became available. The solution here is to use
+preëmption, we revert earlier decisions that turn out to be suboptimal. This compensates for not knowing the future,
+\textit{however} comes at the cost of the overhead associated with context switching. \\
+
+Let us alter our model, such that we may also use preëmption:
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Job & Arrival & Runtime \\ \hline
+         p1 & 0 & 7 \\ \hline
+         p2 & 2 & 4 \\ \hline
+         p3 & 3 & 2 \\ \hline
+         p4 & 6 & 3 \\ \hline
+     \end{tabular}
+     \caption{Job arrivals}
+\end{table}
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|c|}
+         \hline
+         Wait & Start & End & Response \\ \hline
+         (9) & 0 & 16 & 16 \\ \hline
+         (2) & 2 & 8 & 6 \\ \hline
+         0 & 3 & 5 & 2 \\ \hline
+         2 & 8 & 11 & 5 \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+
+Where the wait in brackets indicates the time spent suspended by a preëmpt. So the average wait is down to 3.25, with an
+average response down to 7.25, and the throughput once again remains the same at 0.25.
+% subsection Priority scheduling (end)
+% section Online algorithms (end)
+
+\section{Not knowing runtimes in advance}\label{sec:Not knowing runtimes in advance} % (fold)
+Now for the most realistic model: Jobs arrive at unknown times (open system model), job runtimes are \textbf{not} known
+in advance, and we can use preëmption. So the problem here is that we still don't know the future (shocking, I know),
+and when a new job arrives we do not know whether it will be short or long. We thus do not know whether or not to
+preëmpt, and thus short jobs can get stuck behind long jobs. To solve this we estimate. We assume that a job has
+multiple CPU bursts, and use the exponentially weighted average of previous bursts to estimate the length o fth enext
+burst: \begin{enumerate}
+    \item $t_n$ is the actual length of the $n$th CPU burst
+    \item $\tau_{n + 1}$ is the predicted value for the next burst
+    \item $0 \leq \alpha \leq 1$ is the weight factor
+    \item We define $\tau_{n + 1} = \alpha t_n + \left(1 - \alpha\right)\tau_n$ (where $\tau_1 = 0$)
+    \item Result: $\tau_{n + 1} = \displaystyle\sum_{i = 1}^{n} \left(1 - \alpha\right)^{n - i} \alpha t_i$
+\end{enumerate}
+The motivation here is that if a process starts taking too long to run, we assume that it will continue so to do, and so
+context switch. This might not give good results, and has the additional problem of lots of overhead.
+
+\subsection{Example for estimate}\label{sub:Example for estimate} % (fold)
+Let us define $\alpha = \displaystyle\frac{1}{4}$, and $\tau_{n + 1} = \displaystyle\sum_{i = 1}^{n}
+\left(\displaystyle\frac{3}{4}\right)^{n - i} \cdot \displaystyle\frac{1}{4}t_i$: \begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Time step & Actual & Next step (prediction) \\ \hline
+         1 & $t_1 = 10$ & $\displaystyle\frac{1}{4} \cdot 10 = 2.5$ \\ \hline
+         2 & $t_2 = 1$ & $\displaystyle\frac{3}{4} \cdot \displaystyle\frac{1}{4} \cdot 10 + \displaystyle\frac{1}{4}
+         \cdot 1 = 2.125$ \\ \hline
+         3 & $t_3 = 1$ & $\left(\displaystyle\frac{3}{4}\right)^2 \cdot \displaystyle\frac{1}{4} \cdot 10 +
+         \displaystyle\frac{3}{4} \cdot \displaystyle\frac{1}{4} \cdot 1 + \displaystyle\frac{1}{4} \cdot 1 = 1.843$ \\ \hline
+         4 & $t_4 = 1$ & $\left(\displaystyle\frac{3}{4}\right)^3 \cdot \displaystyle\frac{1}{4} \cdot 10 +
+         \left(\displaystyle\frac{3}{4}\right)^2 \cdot \displaystyle\frac{1}{4} \cdot 1 + \displaystyle\frac{3}{4} \cdot
+         \displaystyle\frac{1}{4} \cdot 1 + \displaystyle\frac{1}{4} \cdot 1 = 1.632$ \\ \hline
+     \end{tabular}
+     \caption{Predicted time steps}
+\end{table}
+% subsection Example for estimate (end)
+
+\subsection{Alternative partial solution}\label{sub:Alternative partial solution} % (fold)
+Let us assume that jobs can run together (by splitting apart the CPU into many parts, each able to run a job). This is
+called processor sharing, and when there are $k$ jobs, they all advance at a rate of $\displaystyle\frac{1}{k}$.
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_6_processor_sharing}
+    \caption{Processor sharing visualisation}
+\end{wrapfigure}
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Job & Arrival & Runtime \\ \hline
+         p1 & 0 & 7 \\ \hline
+         p2 & 2 & 4 \\ \hline
+         p3 & 3 & 2 \\ \hline
+         p4 & 6 & 3 \\ \hline
+     \end{tabular}
+     \caption{Job arrivals}
+\end{table}
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|c|}
+         \hline
+         Wait & Start & End & Response \\ \hline
+         0 & 0 & 16 & 16 \\ \hline
+         0 & 2 & 14.5 & 12.5 \\ \hline
+         0 & 3 & 10 & 7 \\ \hline
+         0 & 6 & 15.5 & 9.5 \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+
+The average wait is undefined, with an average response of 11.25, and the throughput is still 0.25. This is good since
+short jobs do not get stuck, however it has the drawbacks of every process running at a slower rate. So is it really
+beneficial? Well, this depends on workload statistics, specifically on the distribution of job lengths. Should we have 3
+processes, 1 very long, and two very short, then this is the good case, and it even approximates SRPT. However, should
+all the tasks require the same amount of time, then all the jobs will take that amount of time longer (4 jobs of equal
+length all take 4x longer), and is even worse than FCFS. \\
+Remember, this was currently a theoretical discussion, since we cannot actually share our processor. So in theory,
+processor sharing is good for \textbf{skewed} distributions, where there are many small values, and few large values.
+Specifically, this is good when $CV > 1$, where $CV$ us the Coefficient of Variation \[
+    CV = \displaystyle\frac{\sigma}{\mu}
+\]
+(ie, standard deviation over the mean). \\
+
+So, some people (citation needed) measured lots of things, and found most processes are indeed very short, though some
+are very long, and the distribution has a pareto tail: \[
+    Pr \left(r > t\right) = \displaystyle\frac{1}{t}
+\]
+Though with the caveat that there is little data, and different systems are probably very different. Overall however, it
+does appear that processor sharing should be really rather good, such a shame that it cannot be done.
+% subsection Alternative partial solution (end)
+
+\subsection{How to do processor sharing}\label{sub:How to do processor sharing} % (fold)
+OK, this title is misleading, but we can approximate it. Consider the round robin scheduler (implemented in exercise 2).
+We run each process for a certain time quantum (predetermined short amount of time), and then preëmpt, and move the
+current process to the back of the queue. Let us return to the above examples:
+
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \center
+    \includegraphics[width=\linewidth]{lecture_6_round_robin_scheduling}
+    \caption{Processor sharing visualisation}
+\end{wrapfigure}
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|}
+         \hline
+         Job & Arrival & Runtime \\ \hline
+         p1 & 0 & 7 \\ \hline
+         p2 & 2 & 4 \\ \hline
+         p3 & 3 & 2 \\ \hline
+         p4 & 6 & 3 \\ \hline
+     \end{tabular}
+     \caption{Job arrivals}
+\end{table}
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|c|c|}
+         \hline
+         Wait & Start & End & Response \\ \hline
+         (9) & 0 & 16 & 16 \\ \hline
+         (7) & 2 & 13 & 11 \\ \hline
+         (2) & 6 & 7 & 4 \\ \hline
+         (5) & 7 & 14 & 7 \\ \hline
+     \end{tabular}
+     \caption{Wait time-response time}
+\end{table}
+
+Average wait: 5.5, average response: 9.5 (up from 7.25 in SRPT), throughput: 0.25
+So as we see, it is an improvement, if not for the massively increased context switching.
+
+However, we still need to choose our quantum. With $n$ jobs, and quantum $q$, no job waits more than $\left(n -
+1\right)q$, and thus a shorter $q$, results in a shorter wait. However, this has the cost of context switches. If a
+context switch takes time $c$, then the overhead will be $\displaystyle\frac{c}{q + c}$, so a shorter $q$ results in
+more overhead, the smaller $q$ results in an overhead that tends to 1. If $q$ is too long, then bursts will finishe
+before the end of the quantum, and this will lead to behaviour like FCFS. We have empirical data on effective quyantums.
+The attached table has data on the distribution of actual running time for different apps (till finished busrt, external
+interrupt, or end of quantum). \\
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.2]{lecture_6_effective_quantum}
+    \caption{Effective quanta}
+\end{figure}
+It should also be noted from this table that multimedia apps use less that $\displaystyle\frac{1}{1000}$ of the
+effective quantum.
+
+To implement RR, the scheduler selects a process to run, and then gives it to the CPU. The OS then loses control of the
+system, and possibly will not regain control until a system call. So how can we enforce a limited time quantum? Through
+hardware support of periodic clock interrupts. This the only way for the OS to regain control over the CPU, and once the
+OS is in control, it can perform a context switch.
+
+So RR works in an online setting, and uses preëmption to cope with a lack of knowledge of when additional jobs will
+arrive, and for how long jobs will run. RR gives uniform treatment to all jobs, and we can theoretically do better, and
+this is left as an exercise to the reader :)
+% subsection How to do processor sharing (end)
+% section Not knowing runtimes in advance (end)
+
+\end{document}
