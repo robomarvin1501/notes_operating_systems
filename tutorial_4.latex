@@ -1,0 +1,434 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Tutorial 4 - Kernel level threads}
+\author{Gidon Rosalki}
+\date{2025-04-23}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Introduction to multithreading}\label{sec:Introduction to multithreading} % (fold)
+Modern computers have multiple cores. Each resides within the CPU (some computers have multiple CPUs). Cores run
+commands simultaneously (truly in parallel). This is useful when using blocking operations, since we may use other
+processors while one is blocking. \\
+We shall define the concept of a "task". These are user defined, and are sections of code that are processed
+simultaneously, such that the program will benefit from the multiple resources of the computer, and can thus run
+faster. For example, one mught need to perform a task on every object in an array, but if they are independent of each
+other, these can be split up to different cores. It is important to remember the difference between user level threads,
+and kernel level threads (previous tutorial). \\
+
+We will be using the C++ thread class to represent this, from the std::thread library.
+% section Introduction to multithreading (end)
+
+\section{Creating threads}\label{sec:Creating threads} % (fold)
+A thread runs a function (which may of course call other functions). Creating this thread is done by constructing an
+object. After construction, the thread enters the scheduling queue immediately. The default empty constructor runs
+nothing. \\
+The constructor should refer to the thread's function, and arguments to pass to it, if any. For example:
+\begin{lstlisting}
+#include <iostream>
+#include <thread>
+
+void thread_func(int x, int y)
+{
+    std::cout << "x = " << x << " and y = " << y << std::endl;
+}
+
+int main()
+{
+    std::cout << "Creating threads" << std::endl;
+    std::thread t1(thread_func, 1, -1);
+    std::thread t1(thread_func, 2, -2);
+}
+\end{lstlisting}
+
+However, this code block will result in an error "Terminate called without an active exception". What happened is that
+this process has 3 threads, \lstinline[columns=fixed]{main}, \lstinline[columns=fixed]{t1}, and
+\lstinline[columns=fixed]{t2}. In execution, \lstinline[columns=fixed]{main} continues to run after creating the others,
+reaches the end, and then calls their destructors. This is illegal since no thread may be destructed before it is
+\textbf{joined} (or cancelled).
+
+\subsection{Join}\label{sub:Join} % (fold)
+Joining threads means that the one thread waits until the thread on which we called join finishes. This in essence
+blocks the thread that called join on the second (so here main is blocked until the others finish).
+\begin{lstlisting}
+#include <iostream>
+#include <thread>
+
+void thread_func(int x, int y)
+{
+    std::cout << "x = " << x << " and y = " << y << std::endl;
+}
+
+int main()
+{
+    std::cout << "Creating threads" << std::endl;
+    std::thread t1(thread_func, 1, -1);
+    std::thread t1(thread_func, 2, -2);
+
+    t1.join();
+    t2.join();
+}
+\end{lstlisting}
+
+So here the output will be the result of the printing, in any order, since this happened asynchronously.
+
+% subsection Join (end)
+
+\subsection{jthreads}\label{sub:jthreads} % (fold)
+C++ has another library (since C++20) called jthreads, which ensures that the thread is automatically destroyed in
+destruction, and you therefore have no need to call join. There is also std::this\_thread, which adds the function
+yield, which hints to the scheduler to run another thread instead of the calling thread (much like yield in python,
+allows continued execution from elsewhere). Additionally there is sleepfor(), which sleeps for a given amount of time
+(from std::chrono). \\
+We also have lambdas, allowing initialisation of threads using anonymous functions: \begin{lstlisting}
+int x = 0;
+std::thread t ([] (const int &wait) { sleep (wait); }, 5);
+t.join ();
+std::cout << “Out !” << std::endl;
+\end{lstlisting}
+% subsection jthreads (end)
+
+\subsection{Variable accessibility}\label{sub:Variable accessibility} % (fold)
+Each thread running a function has its own stack (in a similar manner to user level threads). However, it is import to
+note that threads \textbf{can} access other threads variables if given their address, because threads are still living
+in the same process address space. However, when the thread terminates, the variable will be destroyed. It is typical to
+have shared variables allocated dynamically in the heap, or put into the data segment (global).
+
+\subsubsection{Mutual exclusion}\label{sec:Mutual exclusion} % (fold)
+It is better if threads do not share resources, consider for example the following function:
+\begin{lstlisting}
+int x = 0;
+void
+thread_function ()
+{
+    for (int i = 0; i < 1000000; i++)
+        {
+            x++;
+        }
+}
+\end{lstlisting}
+Should this code be run with more than one thread, we will get many possible options for the value of $x$. This is
+because \lstinline[columns=fixed]{x++} is not an atomic operation, it involves 3 asm instructions. Therefore, if there
+are two operations implementing it at almost the same time, they will both take the old value, add one to it, and then
+update to their new value, resulting in a final value of \lstinline[columns=fixed]{x + 1} instead of
+\lstinline[columns=fixed]{x + 2}. This is called a \textbf{race condition}.
+% subsubsection Mutual exclusion (end)
+
+\subsubsection{Atomic variables}\label{sec:Atomic variables} % (fold)
+C++ offers a wrapper std::atomic, which makes a variable "atomic", in that it provides atomic operations such as load \&
+store, compare and swap (CAS), and fetch \& add. So in short, the wrapper overrides the shorthand arithmetic and bitwise
+operations (ie +=), but does \textbf{not} override RHS (such as \lstinline[columns=fixed]{x = x + 5}). So, if we correct
+the above code:
+
+\begin{lstlisting}
+std::atomic<int> x = 0;
+void
+thread_function ()
+{
+    for (int i = 0; i < 1000000; i++)
+        {
+            x++;
+        }
+}
+\end{lstlisting}
+this is correct.
+% subsubsection Atomic variables (end)
+
+\subsubsection{Mutex}\label{sec:Mutex} % (fold)
+The c++ standard library fuctions and classes are \textbf{not} thread safe by default. Thread safety is when multiple
+threads accessing the same container is well defined, with no problems. For example:
+
+\begin{lstlisting}
+#include <iostream>
+#include <thread>
+#include <vector>
+#define RANGE 1000000
+void
+thread_function (std::vector<int> &shared, int range)
+{
+    for (int i = 0; i < range; i++)
+        {
+            shared.push_back (i);
+        }
+}
+int
+main ()
+{
+    std::vector<int> vec;
+    {
+        std::jthread threads[8];
+        for (int i = 0; i < 8; i++)
+            {
+                threads[i]
+                    = std::jthread (thread_function, std::ref (vec), RANGE);
+            }
+    }
+    std::cout << "vec has " << vec.size () << " elements" << std::endl;
+    return 0;
+}
+
+\end{lstlisting}
+
+Here, instead of the expected output of vec containing some ordering of numbers, because when the vector runs out of
+space, then there is a reallocation, to create a larger array, and the memory can be moved within the heap, resulting in
+other threads that are possibly in the middle of operations, accessing unallocated areas of memory, resulting in
+\lstinline[columns=fixed]{munmap} errors. The solution to this is a \lstinline[columns=fixed]{mutex}. This is the
+simplest primitive synchronisation mechanism, which is also called a lock. It is used to protect critical sections. When
+lock / acquire locks the mutex, any other thread calling lock will be blocked, or slept. Unlock / release releases the
+mutex, and wakes up waiting threads (if they exist). \\
+C++ implements a mutex in std::mutex, which is a class supplying an abstraction of mutex. This \textbf{must} be shared
+between the threads. To make an example of using them:
+\pagebreak
+\begin{lstlisting}
+#include <iostream>
+#include <mutex>
+#include <thread>
+void
+thread_func (std::mutex &m, int thread_num)
+{
+    m.lock ();
+    std::cout << "I am thread " << thread_num << std::endl;
+    m.unlock ();
+}
+int
+main ()
+{
+    std::mutex m;
+    std::jthread threads[10];
+    for (int i = 0; i < 10; i++)
+        {
+            threads[i] = std::jthread (thread_func, std::ref (m), i);
+        }
+}
+\end{lstlisting}
+
+It is important to note that mutexes \textbf{must be} passed by reference, or by pointer, since otherwise it is copied,
+and thus two threads can lock at the same time, and it has given you nothing.
+
+However, we do not trust the user to remember to always lock and unlock their mutexes. So instead we have
+std::unique\_lock. This is a wrapper helper class for using mutexes, which allows calling lock() again without blocking
+(recursive locking), ownership transfer and lock swaps, and use for condition variables (later). This uses RAII
+(resource acquisition is initialisation). Calling to unique\_lock's constructor \textbf{automatically locks the thread},
+and similarly its destructor automatically releases the mutex.
+
+\begin{lstlisting}
+#include <iostream>
+#include <mutex>
+#include <thread>
+void
+thread_func (std::mutex &m, int thread_num)
+{
+    std::unique_lock<std::mutex> lock (m);
+    std::cout << "I am thread " << thread_num << std::endl;
+}
+int
+main ()
+{
+    std::mutex m;
+    std::jthread threads[10];
+    for (int i = 0; i < 10; i++)
+        {
+            threads[i] = std::jthread (thread_func, std::ref (m), i);
+        }
+}
+\end{lstlisting}
+% subsubsection Mutex (end)
+
+\subsubsection{Semaphores}\label{sec:Semaphores} % (fold)
+A semaphore is a generalised version of a mutex. This allows an entrance of \textbf{at most} $n$ threads to a critical
+section, however unlike a mutex, its value \textbf{can} be modified in runtime. We have a few types: \begin{itemize}
+    \item std::counting\_semaphore: The constructor takes the initial value, release() releases the semaphore (up /
+        post), and acquire() acquires the semaphore (down / wait).
+    \item std::binary\_semaphore: This is equivalent to std::counting\_semaphore<1> (ie, only 1 thread allowed). It is
+        different from a mutex, since in a mutex the thread that locked the mutex is the only thread that can allow
+        another into the critical zone, but in a binary\_semaphore, all other threads can release the semaphore.
+\end{itemize}
+% subsubsection Semaphores (end)
+
+\subsubsection{Conditional variables}\label{sec:Conditional variables} % (fold)
+A conditional variable (also called monitor), is a synchronisation object used to control conditional entrance to a
+critical section. They may send signals, and broadcasts, on signal it notifies a single thread that it is permitted to
+enter, and broadcast notifies all threads they are permitted to continue. They are used as a sleep - wake up mechanism
+\textbf{inside a critical section}. Before waiting, we acquire a mutex and enter the first part of the critical section.
+Now we wait, we don't want other threads waiting to enter a critical section to be blocked, so we release the mutex.
+When another thread wakes us up, we acquire the mutex again, and continue at the critical section, with the mutex
+locked, and release it at the end. The three important functions here are wait, notify\_one, and notify\_all.
+
+According to the standard, a wait call may be awakened spuriously, as in even if there was not a call to notify, or
+there was a call that has already woken up another thread. Although these are rare, it is important to check for the
+condition completion, and calling wait again. (ie, use while instead of if for this condition). There is also a "wait
+predicate", so add the requirement inside the wait call as follows: \begin{lstlisting}
+cv.wait(lock, [&x](){x == 4});
+\end{lstlisting}
+This calls the predicate (returns true only if $x$ is 4), and goes to sleep while it is false.
+% subsubsection Conditional variables (end)
+
+\subsubsection{Barrier}\label{sec:Barrier} % (fold)
+This is a location of code all threads (or some of them) are required to reach, before all can continue to teh next
+instruction. Barrier is \textbf{not} a primitive synchronisation mechanism. Instead, we shall implement it ourselves.
+The idea is that a shared variable counts the number of arrived threads, with a CV wait for the release event, and if
+the shared variable reaches the required number of threads, then it broadcasts.
+
+\begin{lstlisting}[caption=barrier.h]
+#include <condition_variable>
+#include <mutex>
+class Barrier
+{
+  public:
+    Barrier (int num_threads); // constructor
+    void wait ();              // wait for all threads to arrive
+  private:
+    int arrived;
+    int num_threads;
+    std::condition_variable cv;
+    std::mutex mtx;
+};
+\end{lstlisting}
+
+\begin{lstlisting}[caption=barrier.cpp]
+void
+Barrier::wait ()
+{
+    // acquire mutex to increment `arrived`
+    std::unique_lock<std::mutex> lock (this->mtx);
+    // now the mutex is locked
+    int currently_arrived = ++this->arrived;
+    if (currently_arrived == this->num_threads)
+        { // if all threads have arrived, notify all (broadcast)
+            this->arrived = 0; // reset this->arrived
+            this->cv.notify_all ();
+        }
+    else
+        { // wait for broadcast, release the lock
+            while (this->arrived != 0)
+                {
+                    this->cv.wait (lock);
+                }
+        } // reaching to this point, the mutex is locked.
+    // the mutex is automatically released since we used
+    std::unique_lock
+}
+\end{lstlisting}
+
+% subsubsection Barrier (end)
+\pagebreak
+\subsubsection{Thread local cache (TLS)}\label{sec:Thread local cache (TLS)} % (fold)
+Thread local cache is a memory management method, allowing the data segment variables to have a separate copy on each
+thread. Recall, the data segment saves function static variables, and global variables. Unlike the normal behaviour of
+shared static and global variables, the variables are \textbf{not} shared among the threads, each thread uses its own
+copy.
+
+In C++ we have the keyword thread\_local:
+\begin{lstlisting}
+#include <iostream>
+#include <thread>
+thread_local int x;
+void
+thread_func (int tid)
+{
+    x = tid;
+    std::this_thread::sleep_for (std::chrono::microseconds (200));
+    // t2 probably already updated x
+    // we would expect x to be 1
+    std::cout << "x = " << x << std::endl;
+}
+
+int
+main ()
+{
+    std::jthread t1 (thread_func, 0);
+    // t2 delays and updates x probably after t1
+    std::this_thread::sleep_for (std::chrono::microseconds (100));
+    std::jthread t2 (thread_func, 1);
+    return 0;
+}
+\end{lstlisting}
+
+It is difficult to debug multithreaded programs, since they are non-deterministic. Be wary of print debugs, since print
+does not necessarily print to the screen at the same moment, and print also causes delays, which can affect race
+conditions that you want to debug. Additionally breakpoints are not individual for each thread, and each time a thread
+reaches a breakpoint, the whole process stops. You can alternate between threads in a debugger, and see their individual
+stacks.
+
+% subsubsection Thread local cache (TLS) (end)
+% subsection Variable accessibility (end)
+
+% section Creating threads (end)
+
+\end{document}
