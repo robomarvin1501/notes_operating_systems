@@ -1,0 +1,360 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{bbm}
+\usepackage{wrapfig}
+\usepackage{color}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
+\usepackage{tikz}
+\graphicspath{ {./images/} }
+\usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
+\newtheorem{definition}{Definition}[section]
+
+\newcommand{\R}{\ensuremath{\mathbb{R}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\Z}{\ensuremath{\mathbb{Z}}}
+\newcommand{\p}{\ensuremath{\mathbb{P}}}
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\newcommand{\1}{\ensuremath{\mathbbm{1}}}
+\newcommand{\B}{\ensuremath{\mathbbm{B}}}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\title{Lecture 4 - Synchronisation part 1}
+\author{Gidon Rosalki}
+\date{2025-04-20}
+
+\begin{document}
+\maketitle
+\noindent\textbf{Notice:} If you find any mistakes, please open an issue at \href{https://github.com/robomarvin1501/notes\_operating\_systems}{\texttt{https://github.com/robomarvin1501/notes\_operating\_systems}}
+\section{Motivation}\label{sec:Motivation} % (fold)
+Let us consider two processes that want to print. Two processes write jobs to the spooler. This is a shared queue from
+which the printer extracts print jobs. We could do this as follows: NULL when there is no job to print, OUT indicates
+the next job to be printed, and IN is the end of the queue, and a new job is written there. Then to add a job we wimply
+do Spooler[IN] = job, and then perform IN++. Since IN and Spooler are shared amongst all processes, this can lead to
+race conditions, where two processes try and print at the same time: \begin{enumerate}
+    \item (1) Spooler[IN] = job 1
+    \item (2) Spooler[IN] = job 2
+    \item (1) IN++
+    \item (2) IN++
+\end{enumerate}
+So in the end job 1 is lost, since it was overwritten by job 2, and there will be a null value between job 2 and IN,
+resulting in any new jobs added to the queue never being printed, because the queue was terminated earlier by the NULL.
+\\
+We have further motivation for when there is shared data between many threads in a single process. If every thread can
+alter this data, then we can lose values in a similar manner to what was described above. \\
+% section Motivation (end)
+
+\section{Solutions to the critical section}\label{sec:Solutions to the critical section} % (fold)
+In short, the problem here is uncoordinated access to a shared resource. We will call where this happens the
+\textbf{critical section}, which is a piece of code that accesses the shared resource. This can be one or more
+instructions, and in order to be correct there must not be more than 1 critical section being executed by more than 1
+process. A solution to this is using \textbf{mutual exclusion} algorithms. These avoid the simultaneous execution of a
+critical section. However, sometimes mutual exclusion is not enough, for example, when the order of execution matters.
+This will be discussed more later. Edsgar Dijkstra created a state machine to model this problem, and formalised the
+success criteria: \begin{enumerate}
+    \item Mutual exclusion: No two processes are in the critical section simultaneously
+    \item Progress: If a process is trying to enter the critical section, then some process eventually enters the
+        critical section.
+    \item Starvation freedom: A process trying to enter the critical section will eventually succeed
+    \item Generality: There are no assumptions about speeds or number of participants (number of threads, processors,
+        processes, etc)
+    \item No blocking in the remainder: No process running outside its critical section may block other processes
+\end{enumerate}
+
+\begin{center}
+    \begin{tikzpicture}[node distance=4cm, state/.style={circle, draw, minimum size=2cm}]
+        \node[state] (q0) {Remainder code};
+        \node[state, right of=q0] (q1) {Entry code};
+        \node[state, right of=q1] (q2) {Critical section};
+        \node[state, right of=q2] (q3) {Exit code};
+
+        \draw   (q0) edge[->, above] node{} (q1)
+                (q0) edge[->, loop above] (q0)
+                (q1) edge[->, above] node{} (q2)
+                (q1) edge[->, loop above] (q1)
+                (q2) edge[->, above] node{} (q3)
+                (q3) edge[->, bend left, below] node{} (q0)
+                ;
+    \end{tikzpicture} \\
+\end{center}
+
+Our first attempt to solve this is to simply disable interrupts. When we leave the entry code state, we disable all
+interrupts, and when we leave the exit code we re-enable all interrupts. This solves 1, 2, 3, and 5, but does not solve
+4 if we have a multi processor system (where real parallelism exists). Additionally, user processes should not be
+allowed to disable interrupts, and disabling interrupts should only be done for very short periods of time. \\
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|c|c|}
+         \hline
+         Thread 1 & Thread 2 \\ \hline
+         Remainder & Remainder \\ \hline
+         while(turn == 1); & while(turn == 0); \\ \hline
+         {\color{red}Critical} & {\color{red}Critical} \\ \hline
+         turn = 1; & turn = 0; \\ \hline
+     \end{tabular}
+     \caption{First attempt}
+\end{table}
+Notice that the while loop has no body, so the thread does nothing while it waits for turn. This algorithm works for 2
+threads/processes, it uses a single global variable named turn, which cannot be used in the remainder / critical, and
+has slightly different code for each thread. We can prove that mutual exclusion occurs: Assume that the 2 processes are
+in the critical condition, and then w.l.o.g thread 0 left its entry section (and entered the critical section). First at
+that point turn $\ne$ 1, and so turn = 0. The only place that it can be changed to 1 is when thread 0 exits, and thus
+turn = 0 throughout the entire execution of the critical section by thread 0. Thus thread 1 is in its entry code when
+thread 0 is the critical section, and so we have a contradiction. \\
+However there is still a problem here. Progress / no blocking in the remainder does not hold. Thread 1 can simply stay
+in its remainder, and thus never set turn back to 1, and thus thread 0 is unable to enter its critical section, and
+therefore starvation freedom also does not hold. \\
+
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|p{3cm}|p{3cm}|}
+         \hline
+         Thread 1 & Thread 2 \\ \hline
+         Remainder & Remainder \\ \hline
+         flag[0] = true; \newline while(flag[1]); & flag[1] = true; \newline while(flag[0]); \\ \hline
+         {\color{red}Critical} & {\color{red}Critical} \\ \hline
+         flag[0] = false; & flag[1] = false; \\ \hline
+     \end{tabular}
+     \caption{}
+\end{table}
+We can try and fix this problem by having 2 flags, one for each thread, where when they are true, the respective thread
+wants to enter the critical section. If the other thread wants to enter, then this threads waits until it exits, and
+changes its interest flag back to false. We may once again prove Mutual Exclusion: \\
+This code holds No Blocking in the Remainder, a thread can only block another thread only if its flag is true, implying
+that it is either in its entry, critical, or exit section, but still Progress does not hold, which leads to starvation,
+and Freedom also does not hold. This can result in a \textbf{deadlock}. This is when there are two sections of code,
+both blocking the other from beginning, and both waiting on the other to unblock them to begin. \\
+We can also prove mutual exclusion, similar to above: Assume that the two processes are in the critical section, and
+then w.l.o.g. thread 0 leaves its entry section, and enters the critical section. At that point
+\lstinline[columns=fixed]{flag[0] = true}. Since the only place that \lstinline[columns=fixed]{flag[0]} can be changed
+to false is when thread 0 exits the critical section, and thus this flag is true throughout the entire execution of the
+critical section by thread 0. From this, thread 1 is in its entry code when thread 0 is in the critical section, which
+is a contradiction. \\
+
+Perhaps we should try having a turn, and the flag bits, and hold while the other thread wants to being, and the turn?
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|p{5cm}|p{5cm}|}
+         \hline
+         Thread 1 & Thread 2 \\ \hline
+         Remainder & Remainder \\ \hline
+         turn = 1; \newline flag[0] = true; \newline while(flag[1] \&\& turn == 1); & turn = 0; \newline flag[1] = true; \newline while(flag[0] \&\& turn == 0); \\ \hline
+         {\color{red}Critical} & {\color{red}Critical} \\ \hline
+         flag[0] = false; & flag[1] = false; \\ \hline
+     \end{tabular}
+     \caption{}
+\end{table}
+This does not work, since mutual exclusion does not hold.
+
+We may fix this through Peterson's Algorithm (1981), which is created by a small change
+\begin{table}[H]
+     \centering
+     \begin{tabular}{|p{5cm}|}
+         \hline
+         Thread $i$  \\ \hline
+         Remainder  \\ \hline
+         flag[i] = true; \newline turn = 1 - i; \newline while(flag[1 - i] \&\& turn == 1 - i); \\ \hline
+         {\color{red}Critical} \\ \hline
+         flag[i] = false; \\ \hline
+     \end{tabular}
+     \caption{Peterson}
+\end{table}
+Mutual Exclusion: Assume that the two processes are in the critical section, and then w.l.o.g. thread 0 left its entry
+section, and entered the critical section first, at that point $\text{flag}\left[1\right] = \text{false} $ or turn = 0.
+\begin{enumerate}
+    \item If flag[1] = false, then thread 1 has not executed line 1 of its entry code, and when it eventually reaches
+        line 2, then it will set turn to 0, and wait. The only place that turn is set to 1 is in thread 0's entry code,
+        after it left the critical section, which is a contradiction
+    \item If turn = 0, then thread 1 executed line 2 between thread 0's line 2 and three, and thus a contradiction
+        follows
+\end{enumerate}
+It also holds no blocking in the remainder, and starvation freedom: Assume thread 1 tries to get into the critical
+section, but blocked (on line 3) for infinite time, then thread 0 enters the critical section an infinite number of
+times, and the second time thread 0 will execute the entry $\text{flag} \left[0\right] = true$ turn = 1, and it will
+block. The next time that thread $i$ gets the CPU, the \lstinline[columns=fixed]{while} condition does not hold, and
+thread $i$ enters the critical section, which is a contradiction.
+
+However, this only solves for 2 threads, and cannot be easily extended to more. Furthermore, there is busy waiting (the
+while that does nothing). Additionally, compiler optimisations might change line order, and thus destroy the algorithm.
+% section Solutions to the critical section (end)
+
+\section{Recap}\label{sec:Recap} % (fold)
+\textbf{Race condition}: The scheduling of processes and threads changes the final result. A different order results in
+different results, a typical scenario is that most of the time everything is OK, but sometimes not. This is very hard to
+debug. \\
+\textbf{Atomic instruction}: An instruction that completes in a single step relative to other threads. For example,
+\lstinline[columns=fixed]{x = x + 1} is \textbf{not} atomic. Read (lw) and write (sw) are atomic, however this does not
+always hold (if you have a wide word that spans memory addresses). \\
+\textbf{Busy waiting/spinning/busy looping}: A technique in whicha  process repeatedly checks to see if a condition is
+true. These should usually be avoided as they waste CPU cycles and result in a large overhead.
+% section Recap (end)
+
+\section{Lamport's bakery algorithm}\label{sec:Lamport's bakery algorithm} % (fold)
+At every step, when a thread wants to enter the critical section, it takes an incrementing number. A scheduler decides
+which number gets to be in the critical section at a given time. However, what if two threads take a number at the same
+time? Then currently both will take the same number, so we have failed mutual exclusion.
+\begin{lstlisting}
+// Remainder
+number[i] = 1 + max{number[j]} // Where j is in 1..n
+for (j = 1; j < n; j++) {
+    while(i != j && number[j] > 0 && number[j] < number[i]);
+}
+// Critical
+number[i] = 0;
+\end{lstlisting}
+
+We may fix the 2 threads taking the same number as follows: We look for a thread who has the number that is less than
+equal.
+\begin{lstlisting}
+// Remainder
+number[i] = 1 + max{number[j]} // Where j is in 1..n
+for (j = 1; j < n; j++) {
+    while(i != j && number[j] > 0 && number[j] <= number[i]);
+}
+// Critical
+number[i] = 0;
+\end{lstlisting}
+However, this then results in a deadlock.
+
+We may instead use lexicographical order
+\begin{lstlisting}
+// Remainder
+number[i] = 1 + max{number[j]} // Where j is in 1..n
+for (j = 1; j < n; j++) {
+    while(i != j && number[j] > 0 && (number[j], j) < (number[i], i));
+}
+// Critical
+number[i] = 0;
+\end{lstlisting}
+However, we then have a problem with mutual exclusion. Should threads 4 and 5 try
+and take the same number, then we will give both the same number, let us suppose that there is then a context switch,
+resulting in 5 entering the critical section. Then when we switch back to 4, it will see that they have the same number,
+but it is before 5 lexicographically, and will thus also enter the critical section.
+
+There is a correct implementation here:
+\begin{lstlisting}
+// Remainder
+choosing[i] = true;
+number[i] = 1 + max{number[j]} // Where j is in 1..n
+choosing[i] = false;
+for (j = 1; j < n; j++) {
+    while(choosing[j]);
+    while(i != j && number[j] > 0 && (number[j], j) < (number[i], i));
+}
+// Critical
+number[i] = 0;
+\end{lstlisting}
+This also ensures First In First Out. If a process $i$ is waiting, and thread $j$ has not yet started the entry, then
+$j$ will not enter the critical section before $i$.
+% section Lamport's bakery algorithm (end)
+
+\subsection{Read-Modify-Write instructions}\label{sub:Read-Modify-Write instructions} % (fold)
+So far we assumed that read (load) and write (store) are atomic instructions. However, there might be a context switch
+between a read and its corresponding write. Modern CPUs support in hardware some RMW instructions, and they are thus
+atomic: \begin{itemize}
+    \item Test\&Set(\&Lock) \lstinline[columns=fixed]{i = *lock; *lock = 1; return i;}
+    \item Fetch\&Add(\&p,inc) \lstinline[columns=fixed]{val = *p; *p = val + inc; return val;}
+    \item Compare\&Swap(\&p,old,new) \lstinline[columns=fixed]{if (*p != old) return false; *p = new; return true;}
+\end{itemize}
+With this we can solve mutual exclusion with Test\&Set, since it is atomic:
+\begin{lstlisting}
+// Remainder
+while(test&set(lock));
+// Critical
+lock = 0;
+\end{lstlisting}
+However, Starvation Freedom does not hold. The same thread can enter over an over again, leaving the second outside the
+critical section.
+% subsection Read-Modify-Write instructions (end)
+
+\subsection{Burns' algorithm}\label{sub:Burns' algorithm} % (fold)
+\begin{lstlisting}
+// Remainder
+waiting[i] = true;
+key[i] = 1;
+while(waiting[i] && key[i]) {
+    key[i] = test&set(lock);
+}
+waiting[i] = false;
+// Critical
+j = (i+1) % n;
+while(j != i && !waiting[j]) {
+    j = j + 1 % n ;
+}
+if(j != i) {
+    waiting[j] = false;
+} else {
+    lock = 0;
+}
+\end{lstlisting}
+
+Mutual exclusion occurs since to enter a critical section one needs either waiting = false, or key = 0. If another
+thread is in the critical section, then lock = 1, and so key = 1. Another thread must "let us in". This can only be done
+by the thread leaving the critical section. We use Test\&Set, since without it two threads could read that lock = 0, set
+lock = 1, and then proceed to the critical section together. \\
+This also uses round robin lock passing, so since other threads can enter at most $n - 1$ times, and after that the
+waiting thread is given priority, this holds starvation freedom.
+
+% subsection Burns' algorithm (end)
+
+We can also use \textbf{Synchronisation Primitives}. We define abstract data types that are used to provide
+synchronisation. They have a clear interface to the data type, which cannot be accessed in any other way. These are
+usually provided by the programming languages, with perhaps some assistance from the OS. \\
+Our first example is the semaphore. It records with two fields, value and list. There are also two operations:
+\begin{lstlisting}
+Down(s)
+S.value = S.value - 1
+if S.value < 0 {
+    Add this thread to S.L
+    sleep();
+}
+\end{lstlisting}
+\begin{lstlisting}
+Up(s)
+S.value = S.value + 1
+if S.value <= 0 {
+    Remove thread T from S.L
+    wakeup(T);
+}
+\end{lstlisting}
+The operations are executed atomically. This doesn't make sense since the implementation is orthogonal to the
+definition, however, the motivation here is to avoid busy waiting.
+\end{document}
