@@ -14,7 +14,8 @@
 \usepackage{bbm}
 \usepackage{wrapfig}
 \usepackage{listings}
-\usepackage{hyperref}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
 \usepackage{color}
 \graphicspath{ {./images/} }
 \usepackage[bottom=0.5cm, right=1.5cm, left=1.5cm, top=1.5cm]{geometry}

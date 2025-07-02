@@ -15,7 +15,8 @@
 \usepackage{bbm}
 \usepackage{wrapfig}
 \usepackage{color}
-\usepackage{hyperref}
+\usepackage[bookmarks=true]{hyperref}
+\usepackage{bookmark}
 \usepackage{tikz}
 \usetikzlibrary{automata, positioning, arrows, calc}
 \graphicspath{ {./images/} }
