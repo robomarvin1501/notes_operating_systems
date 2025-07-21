@@ -340,7 +340,7 @@ This calls the predicate (returns true only if $x$ is 4), and goes to sleep whil
 % subsubsection Conditional variables (end)
 
 \subsubsection{Barrier}\label{sec:Barrier} % (fold)
-This is a location of code all threads (or some of them) are required to reach, before all can continue to teh next
+This is a location of code all threads (or some of them) are required to reach, before all can continue to the next
 instruction. Barrier is \textbf{not} a primitive synchronisation mechanism. Instead, we shall implement it ourselves.
 The idea is that a shared variable counts the number of arrived threads, with a CV wait for the release event, and if
 the shared variable reaches the required number of threads, then it broadcasts.

@@ -199,7 +199,7 @@ between pages, they are sections of memory that are not split between pages). \\
 How much physical memory is needed (at least) for a process with 3 pages of virtual memory (for example, one code, one
 data, and one stack)? \\
 We need 3 frames for the process's 3 pages, 1 frame for the third level page table, 1 for the second level page table,
-and 1 for the first level page table, so in total 6 frames, which are $6 \cdot 8KB = 48KB$. The fact htat most of the
+and 1 for the first level page table, so in total 6 frames, which are $6 \cdot 8KB = 48KB$. The fact that most of the
 table isn't used is crucial, each table points to 16MB ($2^{11}$ entries of size 8KB).
 % subsection 4 (end)
 

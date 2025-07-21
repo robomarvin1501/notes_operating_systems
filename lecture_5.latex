@@ -75,7 +75,7 @@
   tabsize=3
 }
 
-\title{Lecture 5 - Synchronisation part 1}
+\title{Lecture 5 - Synchronisation part 2}
 \author{Gidon Rosalki}
 \date{2025-04-27}
 
@@ -87,7 +87,7 @@ Here is a different synchronisation problem, coordination rather than contention
 execute segment A before 2 executes segment B. We can use the semaphore here, where A set sit to up at the end, and b
 waits on it to be up. Let us now consider a slightly more complex example: \\
 Thread 1 transfers money from account A to B, and 2 from B to A. If executed simultaneously, errors might occur (e.g.
-Thread 1 executes A--, while thread 2 executes A++). Here we may similarly do down before the critical segment, and up
+Thread 1 executes A$--$, while thread 2 executes A++). Here we may similarly do down before the critical segment, and up
 at the end, much as we saw last week. \\
 Now, let us consider having 3 threads instead, where A transfers to B, B to C, and C to D. This time, we can give each
 segment its own lock, instead of a single semaphore flag, so before A it calls down on SA, and SB, since we now cannot
@@ -178,7 +178,7 @@ declares in advance its needed resources, and the OS schedules them in a way tha
 banker's algorithm (Dijkstra), though be warned, this has a high overhead.
 
 \subsubsection{The Banker's algorithm}\label{sec:The Banker's algorithm} % (fold)
-We will denote $M_p$ to be the maximal requirements of each process, $C_p$ the current allocation to each process, nad
+We will denote $M_p$ to be the maximal requirements of each process, $C_p$ the current allocation to each process, and
 $A$ the currently available resources. For example, $A = \left(3, 0, 1\right)$ indicates that there are 3 units of
 resource \#1, 0 of \#2, and 1 of \#3. \\
 A safe state is when there exists a scheduling so that each proess gets the resources it needs, and then releases them
@@ -305,7 +305,7 @@ There are 3 operations on condition variables: \begin{itemize}
         else to signal condition, thus condition variables have associated wait queues.
     \item \lstinline[columns=fixed]{signal}: Wakes up at most one waiting thread. If there are no waiting threads, then
         the signal is lost (note this difference from semaphores, there is no history)
-    \item \lstinline[columns=fixed]{broadcase}: Wakes up all waiting threads
+    \item \lstinline[columns=fixed]{broadcast}: Wakes up all waiting threads
 \end{itemize}
 
 We have two models for solving the resource problem, shared memory, and message passing. We assume two threads /

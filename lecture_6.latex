@@ -354,7 +354,7 @@ Now for the most realistic model: Jobs arrive at unknown times (open system mode
 in advance, and we can use preëmption. So the problem here is that we still don't know the future (shocking, I know),
 and when a new job arrives we do not know whether it will be short or long. We thus do not know whether or not to
 preëmpt, and thus short jobs can get stuck behind long jobs. To solve this we estimate. We assume that a job has
-multiple CPU bursts, and use the exponentially weighted average of previous bursts to estimate the length o fth enext
+multiple CPU bursts, and use the exponentially weighted average of previous bursts to estimate the length of the next
 burst: \begin{enumerate}
     \item $t_n$ is the actual length of the $n$th CPU burst
     \item $\tau_{n + 1}$ is the predicted value for the next burst
@@ -482,9 +482,9 @@ So as we see, it is an improvement, if not for the massively increased context s
 However, we still need to choose our quantum. With $n$ jobs, and quantum $q$, no job waits more than $\left(n -
 1\right)q$, and thus a shorter $q$, results in a shorter wait. However, this has the cost of context switches. If a
 context switch takes time $c$, then the overhead will be $\displaystyle\frac{c}{q + c}$, so a shorter $q$ results in
-more overhead, the smaller $q$ results in an overhead that tends to 1. If $q$ is too long, then bursts will finishe
-before the end of the quantum, and this will lead to behaviour like FCFS. We have empirical data on effective quyantums.
-The attached table has data on the distribution of actual running time for different apps (till finished busrt, external
+more overhead, the smaller $q$ results in an overhead that tends to 1. If $q$ is too long, then bursts will finish
+before the end of the quantum, and this will lead to behaviour like FCFS. We have empirical data on effective quanta.
+The attached table has data on the distribution of actual running time for different apps (till finished burst, external
 interrupt, or end of quantum). \\
 \begin{figure}[H]
     \centering
